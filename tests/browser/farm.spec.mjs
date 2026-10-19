@@ -30,7 +30,7 @@ test('expansão abre o canteiro e persiste no reload',async({page})=>{
   await page.locator('[data-plot="7"]').click(); await expect(page.locator('[data-expand]')).toBeDisabled();
 });
 test('progresso offline: reload após avançar relógio preserva plantação e permite colher',async({page})=>{
-  await page.locator('[data-seed="carrot"]').click(); await page.locator('[data-plot="2"]').click(); const before=await saved(page);
+  await page.locator('[data-seed="carrot"]').click(); await page.locator('[data-plot="2"]').click(); await page.locator('[data-tool="water"]').click(); await page.locator('[data-plot="2"]').click(); const before=await saved(page);
   await page.clock.fastForward(40_000); await page.reload();
   expect((await saved(page)).seeds).toEqual(before.seeds); await expect(page.locator('[data-plot="2"]')).toHaveClass(/ready/);
   await page.locator('[data-plot="2"]').click(); expect((await saved(page)).harvest.carrot).toBe(1);
@@ -46,7 +46,8 @@ test('save corrompido é preservado em backup e avisa o jogador',async({page})=>
 });
 test('nível 2 libera morangos depois de colher, sem recompra de desbloqueio',async({page})=>{
   for(const i of [2,6,8,9,10]) await page.locator(`[data-plot="${i}"]`).click();
-  await page.clock.runFor(31_000); for(const i of [0,2,6,8,9,10]) await page.locator(`[data-plot="${i}"]`).click();
+  await page.locator('[data-tool="water"]').click(); for(const i of [2,6,8,9,10]) await page.locator(`[data-plot="${i}"]`).click();
+  await page.clock.runFor(31_000); await page.locator('[data-tool="harvest"]').click(); for(const i of [0,2,6,8,9,10]) await page.locator(`[data-plot="${i}"]`).click();
   await expect(page.locator('#level')).toHaveText('2'); await expect(page.locator('[data-seed="strawberry"]')).toBeEnabled();
   await page.locator('#open-shop').click(); await expect(page.locator('[data-buy="strawberry"]')).toBeEnabled();
 });

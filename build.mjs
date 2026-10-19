@@ -3,7 +3,11 @@ import { fileURLToPath } from 'node:url';
 const base=new URL('./',import.meta.url);
 const read=name=>readFile(new URL(name,base),'utf8');
 const modules=await Promise.all(['game','art','app'].map(name=>read(`public/${name}.js`)));
-const source=modules.map(code=>code.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
+let source=modules.map(code=>code.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
+for(const name of ['farm-painted.webp','soil-painted.webp']) {
+  const asset=await readFile(new URL('public/assets/'+name,base));
+  source=source.replaceAll('./assets/'+name,`data:image/webp;base64,${asset.toString('base64')}`);
+}
 let html=await read('src/index.template.html');
 html=html.replace('class="brand" href="./"','class="brand" href="#"');
 const css=await read('public/style.css');

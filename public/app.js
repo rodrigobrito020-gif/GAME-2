@@ -1,4 +1,4 @@
-import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, animalProduction, QUESTS, FERTILIZER_PRICE, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, expansionPrice, action } from './game.js';
+import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, animalProduction, QUESTS, FERTILIZER_PRICE, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, growthRemaining, expansionPrice, action } from './game.js';
 import { icon, cropIcon, animalIcon, animalMarkup, landscape, plotMarkup } from './art.js';
 
 const $ = selector => document.querySelector(selector);
@@ -35,7 +35,7 @@ function run(type,payload={}) {
 function selectTool(next) {
   tool=next;
   document.querySelectorAll('[data-tool]').forEach(el=>{ el.classList.toggle('active',el.dataset.tool===tool); el.setAttribute('aria-pressed',String(el.dataset.tool===tool)); });
-  $('#map-hint').textContent={smart:'Selecione um canteiro para plantar ou colher.',plant:`Plante ${CROPS[selectedCrop].name.toLowerCase()} em um canteiro vazio`,water:'Regue uma plantação para adiantar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
+  $('#map-hint').textContent={smart:'Selecione um canteiro para plantar ou colher.',plant:`Plante ${CROPS[selectedCrop].name.toLowerCase()} em um canteiro vazio`,water:'Regue as plantas secas para iniciar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
   farm.dataset.activeTool=tool;
 }
 function renderPlots(force=false) {
@@ -49,7 +49,7 @@ function renderPlots(force=false) {
     if(focus!==undefined) farm.querySelector(`[data-plot="${focus}"]`)?.focus({preventScroll:true});
   }
   state.plots.forEach((p,i)=>{
-    if(p.crop) { const ready=plotStatus(p,now)==='ready', label=`Canteiro ${i+1}, ${CROPS[p.crop].name}, ${ready?'pronta para colher':time(p.readyAt-now)+' restantes'}`; const node=farm.querySelector(`[data-plot="${i}"]`); node.setAttribute('aria-label',label); node.querySelector('title').textContent=label; }
+    if(p.crop) { const status=plotStatus(p,now), label=`Canteiro ${i+1}, ${CROPS[p.crop].name}, ${status==='ready'?'pronta para colher':status==='dry'?'seca, crescimento pausado; regue para crescer':time(growthRemaining(p,now))+' restantes'}`; const node=farm.querySelector(`[data-plot="${i}"]`); node.setAttribute('aria-label',label); node.querySelector('title').textContent=label; }
   });
   const ready=state.plots.filter(p=>plotStatus(p,now)==='ready').length;
   $('#ready-count').innerHTML=ready?`<span>✦</span> ${ready} ${ready===1?'colheita pronta':'colheitas prontas'}`:'<span>☘</span> Tudo no seu tempo';
@@ -78,6 +78,7 @@ function plotClick(index) {
   if(['weed','spray','fertilize'].includes(tool)) { run(tool,{index}); return; }
   if(tool==='harvest'||(tool==='smart'&&status==='ready')) { run('harvest',{index}); return; }
   if((tool==='plant'||tool==='smart')&&status==='empty') { if(!state.seeds[selectedCrop]) { openModal('shop'); toast('Compre sementes para continuar plantando.'); } else run('plant',{index,crop:selectedCrop}); return; }
+  if(status==='dry') {toast('Plantação seca: crescimento pausado. Selecione Regar e clique no canteiro.',true);return;}
   if(status==='growing') toast(`${CROPS[p.crop].name}: ${time(p.readyAt-Date.now())} para colher.${p.watered?' Já recebeu água.':' Experimente a ferramenta Regar!'}`);
   else toast('Use Cuidar ou Colher para recolher essa plantação.');
 }
@@ -98,7 +99,7 @@ function showPlotInfo(index) {
     const health=document.createElement('div');health.className='health-track';
     const fill=document.createElement('i');fill.style.width=care.health+'%';health.append(fill);
     const value=document.createElement('span');value.textContent=care.health+'/100';health.append(value);tip.append(health);
-    const detail=document.createElement('small');detail.textContent=`${status==='ready'?'Pronta para colher':time(p.readyAt-Date.now())+' para crescer'}${care.weeds?' · Mato':''}${care.pests?' · Pragas':''}${care.dry?' · Seca':''}`;tip.append(detail);
+    const detail=document.createElement('small');detail.textContent=`${status==='ready'?'Pronta para colher':status==='dry'?'Crescimento pausado · regue para crescer':time(growthRemaining(p))+' para crescer'}${care.weeds?' · Mato':''}${care.pests?' · Pragas':''}`;tip.append(detail);
   }
   tip.classList.add('visible');
 }
@@ -139,7 +140,7 @@ function renderModal() {
     $('#modal-body').innerHTML='<form id="rename-form"><label for="farm-name-input">Como vai se chamar sua fazenda?</label><input id="farm-name-input" name="farmName" minlength="2" maxlength="30" required autocomplete="off"><button class="primary-button full" type="submit">Salvar nome</button></form>';
     $('#farm-name-input').value=state.farmName||'Minha fazenda';
   } else {
-    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Selecione uma semente na bolsa e clique em um canteiro vazio. Compre novas sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>Regar adianta 25% do ciclo e Adubar adianta mais 20%, uma vez cada. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local e o crescimento continua enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
+    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Selecione uma semente na bolsa e clique em um canteiro vazio. Compre novas sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
   }
 }
 $('#modal-body').addEventListener('click',e=>{

@@ -1,0 +1,17 @@
+{
+  "farm-painted.webp": {
+    "source": "Original farm background generated with image_gen for GAME-2",
+    "source_sha256": "41377c11f0c2e079022e9014edc2d28d5ace250ab613867e046e1ed89c193ef6",
+    "encoding": "lossless WebP; decoded RGB SHA-256 verified equal to PNG",
+    "decoded_rgb_sha256": "dc2fb6f0f1ee8f3808d81d00cf031ae66bf7bd2914ab6cbe4b0e0a26997441bc",
+    "width": 1639,
+    "height": 960
+  },
+  "soil-painted.webp": {
+    "source": "Garden soil texture generated with image_gen for GAME-2",
+    "source_sha256": "7b50efb9f1096d108a0c2a76426cde8ce67a312cd8878b2a82957879b792d517",
+    "encoding": "Resampled to 384x384 for small terrain tiles; lossless WebP encoding",
+    "width": 384,
+    "height": 384
+  }
+}

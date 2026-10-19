@@ -26,8 +26,8 @@ export const levelInfo = xp => {
 };
 export function newGame(now = Date.now()) {
   const plots = Array.from({ length: 16 }, (_, i) => ({ unlocked: Math.floor(i / 4) < 3 && i % 4 < 3, crop: null, plantedAt: 0, readyAt: 0, watered: false }));
-  Object.assign(plots[0], { crop: 'turnip', plantedAt: now - 30_000, readyAt: now, weeded: true, sprayed: false });
-  Object.assign(plots[1], { crop: 'turnip', plantedAt: now - 8000, readyAt: now + 22_000 });
+  Object.assign(plots[0], { crop: 'turnip', plantedAt: now - 30_000, growthStartedAt: now - 30_000, readyAt: now, watered: true, weeded: true, sprayed: false });
+  Object.assign(plots[1], { crop: 'turnip', plantedAt: now - 8000, growthStartedAt: now - 8000, readyAt: now + 22_000, watered: true });
   return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', supplies: { fertilizer: 3 }, animals:[], products:{egg:0,milk:0}, seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
 }
 export function decodeSave(raw, now = Date.now()) {
@@ -42,6 +42,7 @@ export function decodeSave(raw, now = Date.now()) {
       if (!p || typeof p.unlocked !== 'boolean' || typeof p.watered !== 'boolean' || (p.crop !== null && !ids.includes(p.crop))) return null;
       if (!number(p.plantedAt, 9e15) || !number(p.readyAt, 9e15) || p.readyAt < p.plantedAt || (!p.unlocked && p.crop)) return null;
       for (const flag of ['weeded','sprayed','fertilized']) if (p[flag] !== undefined && typeof p[flag] !== 'boolean') return null;
+      if (p.growthStartedAt != null && (!number(p.growthStartedAt,9e15) || p.growthStartedAt>p.readyAt)) return null;
     }
     for (const key of ['planted', 'harvested', 'sold']) if (!Number.isInteger(s.stats[key]) || !number(s.stats[key])) return null;
     if (s.quests.some(q => !QUESTS.some(known => known.id === q)) || new Set(s.quests).size !== s.quests.length) return null;
@@ -57,16 +58,23 @@ export function decodeSave(raw, now = Date.now()) {
 export function plotStatus(plot, now = Date.now()) {
   if (!plot.unlocked) return 'locked';
   if (!plot.crop) return 'empty';
+  if (!plot.watered) return 'dry';
   return plot.readyAt <= now ? 'ready' : 'growing';
 }
 export function progress(plot, now = Date.now()) {
-  if (!plot.crop) return 0;
-  return Math.min(1, Math.max(0, (now - plot.plantedAt) / Math.max(1, plot.readyAt - plot.plantedAt)));
+  if (!plot.crop || !plot.watered) return 0;
+  const start=plot.growthStartedAt ?? plot.plantedAt;
+  return Math.min(1, Math.max(0, (now - start) / Math.max(1, plot.readyAt - start)));
+}
+export function growthRemaining(plot,now=Date.now()) {
+  if (!plot?.crop) return 0;
+  if (!plot.watered) return CROPS[plot.crop].duration * (plot.fertilized ? .8 : 1);
+  return Math.max(0,plot.readyAt-now);
 }
 export function plotCare(plot, now = Date.now()) {
   if (!plot?.crop) return { weeds: false, pests: false, dry: false, health: 100 };
-  const age = now - plot.plantedAt, duration = CROPS[plot.crop].duration;
-  const weeds = !plot.weeded && age >= duration * .35, pests = !plot.sprayed && age >= duration * .65, dry = !plot.watered && age >= duration * .5;
+  const age = plot.watered ? now - (plot.growthStartedAt ?? plot.plantedAt) : 0, duration = CROPS[plot.crop].duration;
+  const weeds = !plot.weeded && age >= duration * .35, pests = !plot.sprayed && age >= duration * .65, dry = !plot.watered;
   return { weeds, pests, dry, health: 100 - (weeds ? 25 : 0) - (pests ? 35 : 0) - (dry ? 10 : 0) };
 }
 export function expansionPrice(state) { return 100 + Math.max(0, state.plots.filter(p => p.unlocked).length - 9) * 75; }
@@ -120,6 +128,7 @@ export function action(state, type, payload = {}, now = Date.now()) {
     plot[weed ? 'weeded' : 'sprayed'] = true; next.xp++;
     message = (weed ? 'Ervas daninhas removidas.' : 'Pragas eliminadas.') + ' +1 XP';
   } else if (type === 'fertilize') {
+    if (plot?.crop && !plot.watered) return fail('A plantação está seca. Regue antes de adubar.');
     if (!plot || plotStatus(plot, now) !== 'growing') return fail('Use adubo em uma plantação que ainda está crescendo.');
     if (plot.fertilized) return fail('Essa plantação já recebeu adubo.');
     next.supplies ||= { fertilizer: 3 };
@@ -139,20 +148,23 @@ export function action(state, type, payload = {}, now = Date.now()) {
     if (!crop || levelInfo(next.xp).level < crop.level) return fail('Esse cultivo ainda não foi desbloqueado.');
     if (next.seeds[payload.crop] < 1) return fail('Suas sementes acabaram. Visite a loja de sementes.');
     next.seeds[payload.crop]--;
-    Object.assign(plot, { crop: payload.crop, plantedAt: now, readyAt: now + crop.duration, watered: false, weeded: false, sprayed: false, fertilized: false });
+    Object.assign(plot, { crop: payload.crop, plantedAt: now, growthStartedAt: null, readyAt: now + crop.duration, watered: false, weeded: false, sprayed: false, fertilized: false });
     next.stats.planted++;
-    message = `${crop.name} plantada! Regue para crescer 25% mais rápido.`;
+    message = `${crop.name} plantada! Regue para iniciar o crescimento.`;
   } else if (type === 'water') {
-    if (!plot || plotStatus(plot, now) !== 'growing') return fail('Regue uma plantação que ainda está crescendo.');
+    if (!plot || !['dry','growing'].includes(plotStatus(plot, now))) return fail('Regue uma plantação que ainda está crescendo.');
     if (plot.watered) return fail('Essa plantação já foi regada.');
-    plot.watered = true; plot.readyAt = Math.max(now, plot.readyAt - CROPS[plot.crop].duration * .25);
-    message = 'Um pouco de carinho. Crescimento adiantado!';
+    const remaining=growthRemaining(plot,now);
+    plot.watered = true; plot.growthStartedAt=now;
+    plot.readyAt = now + Math.max(1,remaining - CROPS[plot.crop].duration * .25);
+    message = 'Plantação regada! O crescimento começou.';
   } else if (type === 'harvest') {
+    if (plot?.crop && !plot.watered) return fail('A plantação está seca e não cresceu. Regue para continuar.');
     if (!plot || plotStatus(plot, now) !== 'ready') return fail('Aguarde a plantação ficar pronta para colher.');
     const picked = CROPS[plot.crop], yieldCount = plot.weeded && plot.sprayed ? 2 : 1;
     next.harvest[plot.crop] += yieldCount; next.xp += picked.xp; next.stats.harvested++;
     message = `+${yieldCount} ${picked.name.toLowerCase()} no armazém · +${picked.xp} XP${yieldCount > 1 ? ' · Bônus de cuidado!' : ''}`;
-    Object.assign(plot, { crop: null, plantedAt: 0, readyAt: 0, watered: false, weeded: false, sprayed: false, fertilized: false });
+    Object.assign(plot, { crop: null, plantedAt: 0, growthStartedAt: null, readyAt: 0, watered: false, weeded: false, sprayed: false, fertilized: false });
   } else if (type === 'sell' || type === 'sellAll') {
     const goods={...CROPS,...PRODUCTS};
     if (type === 'sell' && !Object.hasOwn(goods,payload.crop)) return fail('Escolha uma colheita para vender.');

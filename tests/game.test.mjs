@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CROPS, QUESTS, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, progress, expansionPrice, levelInfo } from '../public/game.js';
+import { CROPS, QUESTS, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
 const NOW=1_800_000_000_000;
 test('novo sítio começa com nove canteiros, sementes e uma colheita pronta',()=>{
   const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,16);
@@ -23,8 +23,8 @@ test('colher exige maturidade; guarda produto, libera a terra e concede XP',()=>
 test('regar adianta 25% do ciclo uma única vez sem criar colheita automaticamente',()=>{
   let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
   const r=action(s,'water',{index:2},NOW+1000); s=r.state;
-  assert.equal(s.plots[2].readyAt,NOW+22_500); assert.equal(s.harvest.carrot,0); assert.equal(action(s,'water',{index:2},NOW+2000).ok,false);
-  assert.equal(plotStatus(s.plots[2],NOW+22_499),'growing'); assert.equal(plotStatus(s.plots[2],NOW+22_500),'ready');
+  assert.equal(s.plots[2].readyAt,NOW+23_500); assert.equal(s.harvest.carrot,0); assert.equal(action(s,'water',{index:2},NOW+2000).ok,false);
+  assert.equal(plotStatus(s.plots[2],NOW+23_499),'growing'); assert.equal(plotStatus(s.plots[2],NOW+23_500),'ready');
 });
 test('vender paga o preço correto, dá a recompensa só uma vez e não vende sementes',()=>{
   let s=action(newGame(NOW),'harvest',{index:0},NOW).state;
@@ -57,7 +57,8 @@ test('objetivos recompensam cada conquista exatamente uma vez',()=>{
   assert.equal(s.quests.length,QUESTS.length); assert.equal(s.coins,240);
 });
 test('save recarrega os mesmos itens e calcula crescimento offline por timestamps',()=>{
-  const s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  s=action(s,'water',{index:2},NOW).state;
   const loaded=decodeSave(JSON.stringify(s),NOW+3600_000);
   assert.deepEqual(loaded.seeds,s.seeds); assert.equal(loaded.coins,s.coins); assert.equal(plotStatus(loaded.plots[2],NOW+3600_000),'ready'); assert.equal(loaded.harvest.carrot,0);
 });
@@ -84,8 +85,10 @@ test('um ciclo completo de todos os cultivos gera renda e mantém ownership',()=
     let s=newGame(NOW); s.coins=1000; s.xp=1000; s.seeds[id]=0; s.quests=QUESTS.map(q=>q.id);
     s=action(s,'buy',{crop:id},NOW).state;
     s=action(s,'plant',{index:2,crop:id},NOW).state;
-    assert.equal(action(s,'harvest',{index:2},NOW+c.duration-1).ok,false);
-    s=action(s,'harvest',{index:2},NOW+c.duration).state;
+    s=action(s,'water',{index:2},NOW).state;
+    const readyAt=s.plots[2].readyAt;
+    assert.equal(action(s,'harvest',{index:2},readyAt-1).ok,false);
+    s=action(s,'harvest',{index:2},readyAt).state;
     s=action(s,'sell',{crop:id},NOW+c.duration).state;
     assert.equal(s.coins,1000-c.cost+c.sell); assert.equal(s.harvest[id],0); assert.equal(s.seeds[id],0);
   }
@@ -98,8 +101,10 @@ test('guia: duas plantas iniciais de nabo e migração de saves antigos',()=>{
 });
 test('mato, pragas e seca reduzem saúde; ferramentas restauram saúde sem XP repetido',()=>{
   let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  assert.equal(plotCare(s.plots[2],NOW+1).health,90);
+  s=action(s,'water',{index:2},NOW).state;
   assert.equal(plotCare(s.plots[2],NOW+1).health,100);
-  assert.deepEqual(plotCare(s.plots[2],NOW+20_000),{weeds:true,pests:true,dry:true,health:30});
+  assert.deepEqual(plotCare(s.plots[2],NOW+20_000),{weeds:true,pests:true,dry:false,health:40});
   s=action(s,'weed',{index:2},NOW+20_000).state; assert.equal(s.xp,1);
   assert.equal(action(s,'weed',{index:2},NOW+20_000).ok,false);
   s=action(s,'spray',{index:2},NOW+20_000).state;
@@ -109,8 +114,9 @@ test('mato, pragas e seca reduzem saúde; ferramentas restauram saúde sem XP re
 });
 test('adubo consome uma unidade, adianta tempo e não repete aplicação',()=>{
   let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  s=action(s,'water',{index:2},NOW).state;
   s=action(s,'fertilize',{index:2},NOW+1000).state;
-  assert.equal(s.supplies.fertilizer,2);assert.equal(s.plots[2].readyAt,NOW+24_000);
+  assert.equal(s.supplies.fertilizer,2);assert.equal(s.plots[2].readyAt,NOW+16_500);
   assert.equal(action(s,'fertilize',{index:2},NOW+1000).ok,false);
   const r=action(s,'buyFertilizer',{},NOW+1000);assert.equal(r.state.supplies.fertilizer,3);assert.equal(r.state.coins,s.coins-15);
   s.supplies.fertilizer=0;assert.equal(action(s,'fertilize',{index:6},NOW).ok,false);
@@ -143,4 +149,30 @@ test('vaca produz leite; alimentação antes de acabar preserva o ciclo; cercado
 test('nome da fazenda validado e persistido sem alterar a economia',()=>{
   const s=newGame(NOW);assert.equal(action(s,'rename',{name:'a'},NOW).ok,false);
   const r=action(s,'rename',{name:' Sítio do evento '},NOW);assert.equal(r.state.farmName,'Sítio do evento');assert.equal(r.state.coins,s.coins);assert.equal(decodeSave(JSON.stringify(r.state),NOW).farmName,'Sítio do evento');
+});
+
+test('sem rega nenhum cultivo cresce ou gera colheita, mesmo após dias offline',()=>{
+ for(const id of Object.keys(CROPS)) {
+  let s=newGame(NOW);s.xp=1000;s.seeds[id]=2;s=action(s,'plant',{index:2,crop:id},NOW).state;
+  for(const elapsed of [0,1000,CROPS[id].duration,86400_000]) {
+   assert.equal(plotStatus(s.plots[2],NOW+elapsed),'dry');assert.equal(progress(s.plots[2],NOW+elapsed),0);
+   assert.equal(growthRemaining(s.plots[2],NOW+elapsed),CROPS[id].duration);
+   assert.equal(action(s,'harvest',{index:2},NOW+elapsed).ok,false);
+  }
+  s=decodeSave(JSON.stringify(s),NOW+86400_000);assert.equal(plotStatus(s.plots[2],NOW+86400_000),'dry');assert.equal(s.harvest[id],0);
+ }
+});
+test('regar depois de uma longa espera inicia o ciclo; o tempo seco não acumula',()=>{
+ let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+ const resumed=NOW+86400_000;s=action(s,'water',{index:2},resumed).state;
+ assert.equal(s.plots[2].growthStartedAt,resumed);assert.equal(progress(s.plots[2],resumed),0);assert.equal(growthRemaining(s.plots[2],resumed),22500);
+ assert.equal(action(s,'harvest',{index:2},resumed).ok,false);
+ assert.equal(plotStatus(s.plots[2],resumed+22499),'growing');s=action(s,'harvest',{index:2},resumed+22500).state;assert.equal(s.harvest.carrot,1);
+});
+test('adubo não substitui água nem é consumido em planta seca; save antigo não burla a rega',()=>{
+ let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+ assert.equal(action(s,'fertilize',{index:2},NOW+86400_000).ok,false);assert.equal(s.supplies.fertilizer,3);
+ delete s.plots[2].growthStartedAt;
+ s=decodeSave(JSON.stringify(s),NOW+86400_000);assert.equal(plotStatus(s.plots[2],NOW+86400_000),'dry');assert.equal(action(s,'harvest',{index:2},NOW+86400_000).ok,false);
+ s=action(s,'water',{index:2},NOW+86400_000).state;assert.equal(plotStatus(s.plots[2],NOW+86400_000),'growing');
 });

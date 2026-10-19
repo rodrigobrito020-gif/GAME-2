@@ -2,7 +2,7 @@
 
 O usuário esclareceu que deseja uma reprodução fiel do Colheita Feliz clássico do Orkut para jogar com amigos de sua cidade em um evento, sem intenção de publicação. Um jogo genérico apenas inspirado no ciclo de fazenda não atende ao objetivo.
 
-O usuário forneceu `Colheita_Feliz_Guia_Ilustrado.pdf`. A versão 0.2 usa as capturas e descrições do documento para orientar a organização do cenário e o ciclo de cuidado de plantas e animais. Consulte `docs/REFERENCIA.md` para o que foi aplicado e o que ainda falta. O projeto continua independente do GAME-1 e ainda não permite partidas entre jogadores.
+O usuário forneceu `Colheita_Feliz_Guia_Ilustrado.pdf`. A versão atual usa as capturas e descrições do documento para orientar a organização do cenário e o ciclo de cuidado de plantas e animais. Consulte `docs/REFERENCIA.md` para o que foi aplicado e o que ainda falta. O projeto continua independente do GAME-1 e ainda não permite partidas entre jogadores.
 
 ## Próxima direção
 
@@ -42,3 +42,7 @@ Animais, decoração, visitas a outras fazendas, presentes, eventos e funções 
 ## Plataforma
 
 Navegador, conforme a escolha do usuário. Interface em HTML/CSS e mapa isométrico em SVG, com regras em JavaScript sem dependências de execução. Funciona em servidor estático ou como arquivo HTML independente gerado por `npm run build`.
+
+## Atualização 0.3
+
+O usuário pediu vegetação viva, terra mais real, movimento na água/árvores e casas detalhadas. Foram adicionados cenário ilustrado e textura de terra gerados, com composição animada na água, folhagem e grama. O crescimento de plantas sem água também foi corrigido: a rega é necessária para iniciar o ciclo; esperar offline ou usar adubo não contorna essa regra.

@@ -15,7 +15,7 @@ Foi escolhida a tela clássica do tutorial de 2011 como referência principal pa
 - Armazém para vender produtos e loja com sementes, animais e ferramentas.
 - Galinhas e vacas que produzem ovos e leite. A alimentação mantém a produção; sem ração, ela pausa. O princípio vem da página 5.
 
-O cenário, as plantas, os animais e os ícones foram desenhados em SVG. Não foi usado código dos repositórios públicos consultados na pesquisa inicial.
+Na versão 0.3, o cenário e a textura da terra usam arte gerada especificamente para o projeto. As plantas, os animais e os ícones permanecem em SVG. Não foi usado código dos repositórios públicos consultados na pesquisa inicial.
 
 ## Regras provisórias de teste
 
@@ -24,3 +24,7 @@ Os ciclos curtos, preços, XP, capacidade de seis animais, intervalos de ração
 ## Ainda a implementar
 
 Vizinhos reais, visitas, ajuda e roubo de colheitas; proteção do cachorro; flores, popularidade, presentes e decoração editável. A versão é local e o desenvolvimento do jogo foi priorizado pelo usuário antes da hospedagem na VPS Windows. Os requisitos futuros de conexão são internet e aproximadamente 30 jogadores.
+
+## Correção de rega na versão 0.3
+
+O cultivo recém-plantado fica seco e pausado até receber água. Nenhum tempo de crescimento é acumulado nesse período, inclusive após recarregar o jogo. A rega começa o ciclo e a adubação exige que ele já tenha sido regado. O progresso e os itens antigos são preservados, e plantações antigas sem rega também precisam de água.
