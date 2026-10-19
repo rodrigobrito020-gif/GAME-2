@@ -40,6 +40,8 @@ npm run build
 
 O resultado fica em `dist/JOGAR.html`.
 
+O mesmo HTML completo também é gerado em `index.html` e `public/index.html`. Essas entradas contêm o CSS, a arte e o JavaScript, permitindo prévias que recebem apenas o HTML. `npm start` executa a geração automaticamente antes de iniciar o servidor. Para editar a estrutura da página, use `src/index.template.html`; os fontes de estilo e lógica continuam em `public/`.
+
 ## Verificação
 
 ```sh
