@@ -21,6 +21,36 @@ export const QUESTS = [
   { id: 'harvest', title: 'Direto da terra', detail: 'Faça sua primeira colheita.', reward: 25 },
   { id: 'sell', title: 'Frutos do seu trabalho', detail: 'Venda uma colheita no armazém.', reward: 25 }
 ];
+// Encomendas são pedidos locais do quadro, sem simular jogadores conectados.
+export const ORDER_RECIPES=Object.freeze([
+ {name:'Cozinha da fazenda',items:{turnip:2}},
+ {name:'Cesta de legumes',items:{carrot:2}},
+ {name:'Farinha para a padaria',items:{wheat:2}},
+ {name:'Horta variada',items:{turnip:2,carrot:2}},
+ {name:'Colheita para o moinho',items:{wheat:2,soybean:2}},
+ {name:'Feno fresco',items:{alfalfa:3}},
+ {name:'Salada da estação',items:{tomato:3,carrot:1}},
+ {name:'Geleia caseira',items:{strawberry:3}},
+ {name:'Cesta de milho',items:{corn:3}},
+ {name:'Doces da fazenda',items:{pumpkin:2}},
+ {name:'Frutas de verão',items:{watermelon:2}},
+ {name:'Ovos para a cozinha',items:{egg:3}},
+ {name:'Leite fresco',items:{milk:2}},
+ {name:'Lã para o ateliê',items:{wool:2}},
+ {name:'Peixes da fazenda',items:{fish:3}},
+ {name:'Camarões do viveiro',items:{shrimp:3}}
+].map(r=>Object.freeze({...r,items:Object.freeze(r.items)})));
+const initialOrders=()=>({completed:0,nextSerial:3,active:[0,1,2].map(recipe=>({serial:recipe,recipe}))});
+export function orderDetails(state,order){
+ const recipe=ORDER_RECIPES[order.recipe],goods={...CROPS,...PRODUCTS};
+ const items=Object.entries(recipe.items).map(([id,quantity])=>({id,quantity,have:(Object.hasOwn(CROPS,id)?state.harvest[id]:state.products?.[id])||0}));
+ const value=items.reduce((sum,i)=>sum+goods[i.id].sell*i.quantity,0);
+ return {...recipe,serial:order.serial,items,coins:Math.ceil(value*1.25),xp:Math.min(16,4+items.reduce((n,i)=>n+i.quantity,0)),ready:items.every(i=>i.have>=i.quantity)};
+}
+function availableOrderRecipes(state){return ORDER_RECIPES.map((r,i)=>({r,i})).filter(({r})=>Object.keys(r.items).every(id=>{
+ if(CROPS[id])return CROPS[id].level<=levelInfo(state.xp).level;
+ return state.animals?.some(a=>ANIMALS[a.type].product===id)||state.pond?.stock.some(a=>AQUACULTURE[a.type].product===id);
+})).map(({i})=>i);}
 export const FERTILIZER_PRICE = 15;
 export const TOOL_SHOP = Object.freeze({weed:{name:'Enxada',icon:'weed',cost:60,detail:'Retire o mato dos canteiros. Compra permanente.'},spray:{name:'Dedetizador',icon:'spray',cost:80,detail:'Elimine as pragas. Compra permanente.'},fertilize:{name:'Adubo rápido',icon:'fertilizer',cost:FERTILIZER_PRICE,detail:'Uma aplicação adianta 20% do crescimento após a rega.'}});
 export function ownsTool(state,id){return !Object.hasOwn(TOOL_SHOP,id)||!!state.tools?.[id];}
@@ -61,7 +91,7 @@ export function newGame(now = Date.now()) {
   const plots = PLOT_LAYOUT.map((_,i)=>({...emptyPlot(),unlocked:i<16&&Math.floor(i/4)<3&&i%4<3}));
   Object.assign(plots[0], { crop: 'turnip', plantedAt: now - 30_000, growthStartedAt: now - 30_000, readyAt: now, watered: true, weeded: true, sprayed: false });
   Object.assign(plots[1], { crop: 'turnip', plantedAt: now - 8000, growthStartedAt: now - 8000, readyAt: now + 22_000, watered: true });
-  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', farmer: 'male', water: { amount: WATER_CAPACITY, nextAt: null }, supplies: { fertilizer: 0 }, tools:{weed:false,spray:false,fertilize:false}, feed:emptyFeed(), mill:{job:null}, animals:[], pond:{owned:false,stock:[]}, products:emptyProducts(), seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0, soybean:3,alfalfa:3 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
+  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', farmer: 'male', water: { amount: WATER_CAPACITY, nextAt: null }, supplies: { fertilizer: 0 }, tools:{weed:false,spray:false,fertilize:false}, feed:emptyFeed(), mill:{job:null}, animals:[], pond:{owned:false,stock:[]}, products:emptyProducts(), seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0, soybean:3,alfalfa:3 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, orders:initialOrders(), quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
 }
 export function decodeSave(raw, now = Date.now()) {
   try {
@@ -80,6 +110,10 @@ export function decodeSave(raw, now = Date.now()) {
     }
     for (const key of ['planted', 'harvested', 'sold']) if (!Number.isInteger(s.stats[key]) || !number(s.stats[key])) return null;
     if (s.quests.some(q => !QUESTS.some(known => known.id === q)) || new Set(s.quests).size !== s.quests.length) return null;
+    if(s.orders===undefined)s.orders=initialOrders();
+    const orders=s.orders;
+    if(!orders||!Number.isInteger(orders.completed)||!number(orders.completed,1e6)||!Number.isInteger(orders.nextSerial)||orders.nextSerial!==orders.completed+3||!Array.isArray(orders.active)||orders.active.length!==3)return null;
+    if(orders.active.some(o=>!o||!Number.isInteger(o.serial)||o.serial<0||o.serial>=orders.nextSerial||!Number.isInteger(o.recipe)||!ORDER_RECIPES[o.recipe])||new Set(orders.active.map(o=>o.serial)).size!==3)return null;
     if (s.supplies && (!Number.isInteger(s.supplies.fertilizer) || !number(s.supplies.fertilizer, 1e6))) return null;
     if(s.tools!==undefined&&(!s.tools||typeof s.tools!=='object'||Array.isArray(s.tools)||Object.keys(TOOL_SHOP).some(id=>typeof s.tools[id]!=='boolean')))return null;
     if (s.farmName !== undefined && (typeof s.farmName !== 'string' || s.farmName.length > 30)) return null;
@@ -110,6 +144,11 @@ export function plotStatus(plot, now = Date.now()) {
   if (!plot.crop) return 'empty';
   if (!plot.watered) return 'dry';
   return plot.readyAt <= now ? 'ready' : 'growing';
+}
+export function cropStage(plot,now=Date.now()){
+ if(!plot.unlocked)return 'locked';if(!plot.crop)return 'empty';
+ if(!plot.watered)return 'seed';if(plot.readyAt<=now)return 'ready';
+ return progress(plot,now)<.3?'sprout':'growing';
 }
 export function progress(plot, now = Date.now()) {
   if (!plot.crop || !plot.watered) return 0;
@@ -147,7 +186,19 @@ export function action(state, type, payload = {}, now = Date.now()) {
   const crop = Object.hasOwn(CROPS, payload.crop) ? CROPS[payload.crop] : null;
   const plot = Number.isInteger(payload.index) && payload.index >= 0 && payload.index < next.plots.length ? next.plots[payload.index] : null;
   let message = '', earned = 0;
-  if(type==='craftFeed') {
+  if(type==='deliverOrder') {
+    next.orders??=initialOrders();
+    const i=next.orders.active.findIndex(o=>o.serial===payload.serial);
+    if(i<0)return fail('Essa encomenda já foi entregue ou não existe.');
+    const order=orderDetails(next,next.orders.active[i]);
+    if(!order.ready)return fail('Colha os produtos que faltam para entregar a encomenda.');
+    if(next.orders.completed>=1e6)return fail('O quadro atingiu o limite de encomendas.');
+    for(const item of order.items)(CROPS[item.id]?next.harvest:next.products)[item.id]-=item.quantity;
+    earned=order.coins;next.coins+=earned;next.xp+=order.xp;next.orders.completed++;
+    const choices=availableOrderRecipes(next),serial=next.orders.nextSerial++;
+    next.orders.active[i]={serial,recipe:choices[serial%choices.length]};
+    message=`Encomenda entregue! +${earned} moedas · +${order.xp} XP. Um novo pedido chegou.`;
+  } else if(type==='craftFeed') {
     const recipe=Object.hasOwn(FEED_RECIPES,payload.recipe)?FEED_RECIPES[payload.recipe]:null,batches=payload.batches??1;
     if(!recipe||!Number.isInteger(batches)||batches<1||batches>10)return fail('Escolha uma receita e de 1 a 10 lotes.');
     if(next.mill?.job)return fail('Recolha a produção do moinho antes de iniciar outra receita.');

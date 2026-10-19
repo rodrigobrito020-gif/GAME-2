@@ -1,5 +1,6 @@
+import { createFarmAudio } from './audio.js';
 import { createFarm3D } from './farm3d.js';
-import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, POND, AQUACULTURE, FEEDS, FEED_RECIPES, aquaticProduction, animalProduction, QUESTS, TOOL_SHOP, ownsTool, FERTILIZER_PRICE, WATER_CAPACITY, waterStatus, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, growthRemaining, expansionPrice, action } from './game.js';
+import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, POND, AQUACULTURE, FEEDS, FEED_RECIPES, aquaticProduction, animalProduction, orderDetails, QUESTS, TOOL_SHOP, ownsTool, FERTILIZER_PRICE, WATER_CAPACITY, waterStatus, newGame, decodeSave, levelInfo, plotStatus, cropStage, plotCare, growthRemaining, expansionPrice, action } from './game.js';
 import { icon, cropIcon, animalIcon, animalMarkup, pondMarkup, landscape, plotMarkup } from './art.js';
 
 const $ = selector => document.querySelector(selector);
@@ -11,9 +12,12 @@ catch { state=newGame(); saveAvailable=false; }
 let tool='smart', selectedCrop='turnip', modalType=null, expansionIndex=null, toastTimer, zoom=1, lastSignature='', returnFocus=null, shopTab='seeds', animalIndex=null;
 let selectedPondSlot=null;
 let pendingPlantIndex=null, seedReturnFocus=null, pointerGesture=null, suppressMapClick=false;
-const farm=$('#farm');
+const farm=$('#farm'),audio=createFarmAudio();
+const taskNames={plant:'Semear',water:'Regar',harvest:'Colher',weed:'Capinar',spray:'Dedetizar',fertilize:'Adubar'};
+function renderQueue(items){const panel=$('#task-queue');panel.hidden=!items.length;$('#queue-title').textContent=`${items.length} ${items.length===1?'tarefa':'tarefas'}`;$('#queue-items').innerHTML=items.slice(0,3).map((j,i)=>`<li class="${i===0?'current':''}"><span>${i===0?'●':i+1}</span>${taskNames[j.type]} · canteiro ${j.index+1}<small>${j.phase==='queued'?'Na fila':j.phase==='acting'?'Em ação':'Caminhando'}</small></li>`).join('')+(items.length>3?`<li class="queue-more">+${items.length-3} na fila</li>`:'');}
+
 farm.innerHTML='<g id="plots"></g><g id="animals"></g><g id="buildings"></g><g id="pond"></g>';
-const farm3d=(document.documentElement.dataset.view==='classic'||new URLSearchParams(location.search).get('view')==='classic')?null:createFarm3D(farm,{onStatus:message=>$('#map-hint').textContent=message,onError:message=>toast(message,true)});
+const farm3d=(document.documentElement.dataset.view==='classic'||new URLSearchParams(location.search).get('view')==='classic')?null:createFarm3D(farm,{onStatus:message=>$('#map-hint').textContent=message,onError:message=>toast(message,true),onQueue:renderQueue});
 if(!farm3d){farm.innerHTML=landscape()+'<g id="plots"></g><g id="animals"></g><g id="pond"></g>';if(new URLSearchParams(location.search).get('view')!=='classic')setTimeout(()=>toast('3D indisponível neste navegador. A fazenda abriu no modo 2D.',true),300);}
 document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
 
@@ -28,10 +32,30 @@ function persist() {
   $('#save-status').textContent=saveAvailable?'✓ Progresso salvo neste navegador':'! Salvamento indisponível: mantenha esta aba aberta';
   $('#save-status').classList.toggle('save-warning',!saveAvailable);
 }
+function actionFeedback(type,payload,before,result){
+  const crop=before.plots[payload.index]?.crop;
+  let label='',art='',at;
+  if(type==='harvest'){const qty=state.harvest[crop]-before.harvest[crop];label=`+${qty} ${CROPS[crop].name} · +${CROPS[crop].xp} XP`;art=cropIcon(crop);}
+  else if(type==='water')label='−1 água · crescendo!';
+  else if(type==='plant')label='Semente plantada';
+  else if(type==='expand')label='Novo canteiro!';
+  else if(type==='weed'||type==='spray')label=type==='weed'?'Mato retirado':'Livre de pragas';
+  else if(type==='fertilize')label='Crescimento adiantado';
+  else if(['sell','sellAll','deliverOrder'].includes(type))label=`+${result.earned} moedas${type==='deliverOrder'?` · +${state.xp-before.xp} XP`:''}`;
+  else if(type==='collectAnimal'||type==='collectAquatic')label=`Produção recolhida · +${state.xp-before.xp} XP`;
+  if(!label)return;
+  audio.play(type);
+  const layer=$('#action-effects'),effect=document.createElement('div');effect.className=`action-effect ${type==='expand'?'expansion-effect':''}`;
+  if(Number.isInteger(payload.index)&&farm3d)at=farm3d.projectPlot(payload.index);
+  effect.style.left=at?`${Math.max(12,Math.min(88,at[0]/14))}%`:'65%';effect.style.top=at?`${Math.max(18,Math.min(78,at[1]/8.2))}%`:'22%';
+  if(modalType){const receipt=document.createElement('div');receipt.className='delivery-receipt';receipt.setAttribute('role','status');receipt.textContent=label;$('#modal-body').prepend(receipt);setTimeout(()=>receipt.remove(),2400);}
+  effect.innerHTML=art;const text=document.createElement('b');text.textContent=label;effect.append(text);layer.append(effect);setTimeout(()=>effect.remove(),1800);
+  if(result.levelUp){const badge=document.createElement('div');badge.className='level-celebration';badge.textContent=`✦ Nível ${levelInfo(state.xp).level} · Novos cultivos disponíveis`;layer.append(badge);setTimeout(()=>badge.remove(),3000);}
+}
 function run(type,payload={}) {
   const result=action(state,type,payload);
   if(!result.ok) { toast(result.message,true); return false; }
-  state=result.state; persist(); render();
+  const before=state;state=result.state; persist(); render();actionFeedback(type,payload,before,result);
   let message=result.message;
   if(type==='rename')message=saveAvailable?`Alterações salvas: ${state.farmName} · ${state.farmer==='female'?'Fazendeira':'Fazendeiro'}.`:`Alterações aplicadas nesta aba: ${state.farmName}. O navegador está bloqueando o salvamento ao reabrir.`;
   if(result.rewards.length) message+=` Objetivo concluído: +${result.rewards.reduce((n,q)=>n+q.reward,0)} moedas!`;
@@ -60,7 +84,7 @@ function renderWater(now=Date.now()) {
 function renderPlots(force=false) {
   const now=Date.now();
   renderWater(now);
-  const signature=JSON.stringify([state.plots.map(p=>[p.unlocked,p.crop,p.watered,p.fertilized,plotCare(p,now),plotStatus(p,now),Math.floor(progress(p,now)*2)]),(state.animals||[]).map(a=>[a.type,animalProduction(a,now).amount,animalProduction(a,now).hungry]),state.pond?.owned,(state.pond?.stock||[]).map(a=>[a.type,aquaticProduction(a,now).amount,aquaticProduction(a,now).hungry])]);
+  const signature=JSON.stringify([state.plots.map(p=>[p.unlocked,p.crop,p.watered,p.fertilized,plotCare(p,now),plotStatus(p,now),cropStage(p,now)]),(state.animals||[]).map(a=>[a.type,animalProduction(a,now).amount,animalProduction(a,now).hungry]),state.pond?.owned,(state.pond?.stock||[]).map(a=>[a.type,aquaticProduction(a,now).amount,aquaticProduction(a,now).hungry])]);
   if(force||signature!==lastSignature) {
     const focus=document.activeElement?.dataset.plot;
     if(farm3d) farm3d.update(state);
@@ -94,7 +118,9 @@ function render() {
   document.querySelectorAll('[data-tool]').forEach(el=>{const locked=!ownsTool(state,el.dataset.tool);el.classList.toggle('locked',locked);el.dataset.locked=String(locked);el.setAttribute('aria-label',locked?`${el.querySelector('b').textContent}: comprar na loja de ferramentas`:el.querySelector('b').textContent);el.title=locked?'Comprar na loja · Ferramentas':el.querySelector('b').textContent;let badge=el.querySelector('.tool-lock');if(locked&&!badge){badge=document.createElement('span');badge.className='tool-lock';badge.innerHTML=icon('lock');el.append(badge);}else if(!locked)badge?.remove();});
   if(!ownsTool(state,tool))selectTool('smart');
   $('#storage-count').textContent=[...Object.values(state.harvest),...Object.values(state.products||{})].reduce((a,b)=>a+b,0);
-  $('#quest-count').textContent=`${state.quests.length}/3`;
+  const orders=state.orders.active.map(o=>orderDetails(state,o)),readyOrders=orders.filter(o=>o.ready);
+  $('#quest-count').textContent=readyOrders.length?`${readyOrders.length} ${readyOrders.length===1?'pronta':'prontas'}`:`${state.orders.completed} ${state.orders.completed===1?'entregue':'entregues'}`;
+  const suggestion=readyOrders[0]||orders[0];$('#order-prompt').classList.toggle('order-ready',suggestion.ready);$('#order-prompt-text').textContent=suggestion.ready?'Pedido pronto para entregar':suggestion.name;$('#order-prompt-detail').textContent=suggestion.ready?`Receber ${suggestion.coins} moedas + ${suggestion.xp} XP →`:suggestion.items.map(i=>`${CROPS[i.id]?.name||PRODUCTS[i.id].name}: ${i.have}/${i.quantity}`).join(' · ');
   $('#seed-tray').innerHTML=Object.entries(CROPS).map(([id,c])=>{
     const locked=level.level<c.level;
     return `<button class="seed-card produce-card ${selectedCrop===id?'selected':''} ${locked?'locked':''}" data-produce="${id}" data-seed="${id}" aria-label="${c.name}, ${locked?`disponível no nível ${c.level}`:`${state.seeds[id]} sementes, ${time(c.duration)}, ${c.xp} XP`}" aria-pressed="${selectedCrop===id}" ${locked?'disabled':''}><span class="seed-art">${cropIcon(id)}</span><span class="seed-info"><b>${c.name}</b><small>${locked?`Nível ${c.level}`:`${time(c.duration)} · ${c.xp} XP`}</small></span><span class="seed-stock" aria-hidden="true">${locked?icon('lock'):`×${state.seeds[id]}`}</span>${selectedCrop===id?'<span class="selected-dot" aria-hidden="true">✓</span>':''}</button>`;
@@ -223,7 +249,7 @@ function pondSelection(){
   return `<section class="pond-selection"><h3>O que criar no viveiro ${slot+1}?</h3><div class="shop-grid aquatic-shop">${Object.entries(AQUACULTURE).map(([id,d])=>`<article class="shop-card produce-card" data-produce="${id}"><div class="shop-crop">${cropIcon(id)}<span>${time(d.duration)} / produto</span></div><h3>${id==='fish'?'Peixes':'Camarões'}</h3><p>Venda: <b>● ${PRODUCTS[d.product].sell}</b> · ${d.xp} XP</p><button data-buy-aquatic="${id}" data-slot="${slot}" ${level<d.level||state.coins<d.cost?'disabled':''}>${level<d.level?`Nível ${d.level}`:`Colocar · ${d.cost} moedas`}</button></article>`).join('')}</div><p class="modal-footnote">Ração para os primeiros 4 ciclos incluída. Prepare as próximas com soja e trigo no moinho.</p></section>`;
 }
 function renderModal() {
-  const titles={shop:['TUDO PARA SUA PLANTAÇÃO','Loja da fazenda'],pond:['CRIAÇÃO NA ÁGUA','Seu lago'],mill:['DA COLHEITA AO COCHO','Moinho de ração'],storage:['SUA PRODUÇÃO','Seu armazém'],help:['COLHEITA FELIZ · GAME-2','Como jogar'],expand:['MAIS ESPAÇO PARA PLANTAR','Expanda sua fazenda'],goals:['RECOMPENSAS','Missões da fazenda'],rename:['DO SEU JEITO','Fazenda e personagem'],animal:['SEU CERCADO','Criação de animais']};
+  const titles={shop:['TUDO PARA SUA PLANTAÇÃO','Loja da fazenda'],pond:['CRIAÇÃO NA ÁGUA','Seu lago'],mill:['DA COLHEITA AO COCHO','Moinho de ração'],storage:['SUA PRODUÇÃO','Seu armazém'],help:['COLHEITA FELIZ · GAME-2','Como jogar'],expand:['MAIS ESPAÇO PARA PLANTAR','Expanda sua fazenda'],goals:['PRODUZA, ENTREGUE E CRESÇA','Encomendas da fazenda'],rename:['DO SEU JEITO','Fazenda e personagem'],animal:['SEU CERCADO','Criação de animais']};
   $('#modal-eyebrow').textContent=titles[modalType][0]; $('#modal-title').textContent=titles[modalType][1];
   if(modalType==='shop') {
     $('#modal-body').innerHTML=`<div class="modal-summary"><p>Sementes pequenas. Possibilidades enormes.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div><div class="shop-grid">${Object.entries(CROPS).map(([id,c])=>{
@@ -252,7 +278,7 @@ function renderModal() {
     const price=expansionPrice(state);
     $('#modal-body').innerHTML=`<div class="expansion-art">${icon('sprout')}</div><p class="expansion-description">Mais um canteiro, mais histórias para plantar.<br>Este terreno será seu para cultivar o que quiser.</p><div class="expansion-price"><span>Novo canteiro</span><b>● ${price} moedas</b></div><button class="primary-button full" data-expand ${state.coins<price?'disabled':''}>${state.coins<price?'Junte mais moedas para expandir':'Preparar novo terreno'}</button><p class="modal-footnote">Você tem ${format(state.coins)} moedas. Cada expansão seguinte custa um pouco mais.</p>`;
   } else if(modalType==='goals') {
-    $('#modal-body').innerHTML=`<p class="modal-summary">Complete os objetivos e receba as moedas automaticamente.</p><div id="quests">${QUESTS.map((q,i)=>`<div class="quest ${state.quests.includes(q.id)?'done':''}"><span class="quest-check">${state.quests.includes(q.id)?'✓':i+1}</span><div><b>${q.title}</b><p>${q.detail}</p><small>${state.quests.includes(q.id)?'Concluído':`● +${q.reward} moedas`}</small></div></div>`).join('')}</div>`;
+    $('#modal-body').innerHTML=`<p class="orders-intro">Separe a produção do armazém e entregue no quadro. Cada pedido paga <b>25% a mais que a venda comum</b> e experiência. Entregar consome os produtos e abre um novo pedido, sem prazo de expiração.</p><div class="order-summary"><span>Pedidos entregues <b>${state.orders.completed}</b></span><span class="gold-pill">● ${format(state.coins)} moedas</span></div><div class="order-grid">${state.orders.active.map(raw=>{const o=orderDetails(state,raw);return `<article class="order-card ${o.ready?'ready':''}" data-order="${o.serial}"><small>PEDIDO #${o.serial+1}</small><h3>${o.name}</h3><div class="order-ingredients">${o.items.map(i=>`<div class="${i.have>=i.quantity?'enough':''}">${cropIcon(i.id)}<span>${CROPS[i.id]?.name||PRODUCTS[i.id].name}<b>${i.have} / ${i.quantity}</b></span></div>`).join('')}</div><p class="order-reward">● ${o.coins} moedas <span>+${o.xp} XP</span></p><button class="primary-button full" data-deliver-order="${o.serial}" ${o.ready?'':'disabled'}>${o.ready?'Entregar encomenda':'Colha os produtos'}</button></article>`;}).join('')}</div><details class="tutorial-goals" ${state.quests.length<3?'open':''}><summary>Primeiros passos · ${state.quests.length}/3</summary><p>Recompensas do tutorial são creditadas automaticamente uma vez.</p><div id="quests">${QUESTS.map((q,i)=>`<div class="quest ${state.quests.includes(q.id)?'done':''}"><span class="quest-check">${state.quests.includes(q.id)?'✓':i+1}</span><div><b>${q.title}</b><p>${q.detail}</p><small>${state.quests.includes(q.id)?'Concluído':`● +${q.reward} moedas`}</small></div></div>`).join('')}</div></details>`;
   } else if(modalType==='rename') {
     $('#modal-body').innerHTML='<form id="rename-form" novalidate><p class="profile-instructions">Escolha o personagem e edite o nome. Depois, confirme no botão abaixo.</p><label for="farm-name-input">Nome da fazenda · 2 a 30 caracteres</label><input id="farm-name-input" name="farmName" minlength="2" maxlength="30" required autocomplete="off" aria-describedby="profile-error"><p id="profile-error" class="profile-error" role="alert" hidden></p><button class="primary-button full" type="button" id="apply-profile">✓ Aplicar nome e personagem</button></form>';
     $('#farm-name-input').value=state.farmName||'Minha fazenda';
@@ -263,6 +289,7 @@ function renderModal() {
   }
 }
 $('#modal-body').addEventListener('click',e=>{
+  const delivery=e.target.closest('[data-deliver-order]');if(delivery&&!delivery.disabled){run('deliverOrder',{serial:Number(delivery.dataset.deliverOrder)});return;}
   if(e.target.closest('[data-open-mill]')){modalType='mill';renderModal();return;}
   const craft=e.target.closest('[data-craft-feed]');if(craft&&!craft.disabled){run('craftFeed',{recipe:craft.dataset.craftFeed});return;}
   const collectFeed=e.target.closest('[data-collect-feed]');if(collectFeed&&!collectFeed.disabled){run('collectFeed');return;}
@@ -303,6 +330,10 @@ $('#open-expand').addEventListener('click',()=>{expansionIndex=state.plots.findI
 $('#open-storage').addEventListener('click',()=>openModal('storage'));
 $('#help').addEventListener('click',()=>openModal('help'));
 $('#open-goals').addEventListener('click',()=>openModal('goals'));
+$('#order-prompt').addEventListener('click',()=>openModal('goals'));
+$('#cancel-queue').addEventListener('click',()=>{farm3d?.cancel();$('#map-hint').textContent='Arraste para mover a câmera · Clique num canteiro para cuidar';toast('Tarefas pendentes canceladas. As ações já concluídas foram preservadas.');});
+function renderSound(){const b=$('#sound-toggle');b.setAttribute('aria-pressed',String(audio.enabled));b.setAttribute('aria-label',audio.enabled?'Desativar sons':'Ativar sons');b.textContent=audio.enabled?'Som: ligado':'Som: desligado';}
+$('#sound-toggle').addEventListener('click',()=>{audio.toggle();renderSound();});document.addEventListener('pointerdown',()=>audio.unlock(),{passive:true});document.addEventListener('keydown',()=>audio.unlock());renderSound();
 $('#edit-farm').addEventListener('click',()=>openModal('rename'));
 $('#open-bag').addEventListener('click',()=>openSeedBag());
 $('#close-bag').addEventListener('click',closeSeedBag);

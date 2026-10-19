@@ -1,8 +1,8 @@
-# GAME-2 — Colheita Feliz 3D, versão 0.9.0
+# GAME-2 — Colheita Feliz 3D, versão 0.10.0
 
 Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
 
-![Fazenda em toda a janela, com recursos no canto superior direito](docs/images/fazenda-v09.png)
+![Fazenda em toda a janela, com recursos no canto superior direito](docs/images/fazenda-v010.png)
 
 A interface ocupa toda a janela do navegador. Cada fazenda começa com os recursos iniciais descritos abaixo.
 
@@ -19,9 +19,23 @@ Clique num **canteiro vazio** para abrir as sementes. Escolher um cultivo manda 
 - Dedetizar: pulverizador.
 - Adubar: saco de adubo.
 
-A alteração acontece durante a animação, após chegar ao canteiro. É possível selecionar vários canteiros para formar uma fila de até 12 tarefas. Cada tarefa conserva a ferramenta e a semente escolhidas no clique; cliques repetidos na mesma tarefa não duplicam produtos. As condições são verificadas novamente quando a ação acontece. Uma tarefa ainda não aplicada não gasta sementes ou adubo e não é salva ao fechar a aba.
+A alteração acontece durante a animação, após chegar ao canteiro. É possível selecionar vários canteiros para formar uma fila, com até 12 aguardando além da ação em andamento. O painel mostra as próximas tarefas e permite cancelar. Cada tarefa conserva a ferramenta e a semente escolhidas no clique; cliques repetidos na mesma tarefa não duplicam produtos. As condições são verificadas novamente quando a ação acontece. Uma tarefa ainda não aplicada não gasta sementes ou adubo e não é salva ao fechar a aba.
 
 Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 5** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
+
+## Fazenda viva e encomendas — versão 0.10.0
+
+- Terrenos fechados têm vegetação e pedras, sem os sulcos de um canteiro já preparado. Ao expandir, a vegetação é retirada, a terra aparece e o próximo terreno recebe a placa de preço. Os 54 terrenos continuam acessíveis por clique e teclado.
+- Os dez cultivos têm formas próprias, com **semente seca → broto → planta crescendo → colheita pronta**. Frutos coloridos e espigas maduras aparecem na etapa de colheita. Sem rega, nem o tempo offline transforma a semente em planta.
+- Água com ondulações mais amplas e suaves, sem a antiga estampa quadriculada; nomes da casa, moinho, lago e animais aparecem nítidos ao passar o mouse ou focar pelo teclado. Câmera inicial um pouco mais próxima, conservando arraste e zoom.
+- Ícone do produto e XP aparecem na colheita; partículas seguem para a cesta, e rega/cuidados têm retorno visual. Subir de nível mostra uma mensagem própria. **Som** é opcional no menu e começa desligado; a escolha fica salva separadamente do progresso.
+- **Fila de tarefas** mostra as próximas ações, o canteiro e se o personagem está caminhando ou executando. Cancelar preserva o que já foi concluído e não cobra tarefas pendentes.
+- **Encomendas:** três pedidos ativos, com 16 receitas possíveis, reabertos após a entrega. Pedem produtos efetivamente colhidos; sementes não contam. Recompensa de venda +25%, arredondada para cima, e 6–8 XP conforme a quantidade. Pedidos novos respeitam cultivos desbloqueados e só pedem produção animal/aquática quando a fazenda possui a criação correspondente.
+- O cartão lateral sugere uma encomenda e destaca pedidos prontos. O tutorial original continua no quadro, com seus três prêmios únicos. Pedidos não expiram e conservam número e progresso ao reabrir.
+
+Use a produção no moinho, venda no armazém ou separe para encomendas: os três usam o mesmo estoque. Uma entrega consome seus ingredientes uma única vez. Saves antigos recebem o quadro sem perder moedas, itens, terrenos, água ou criações.
+
+[Ver encomendas](docs/images/encomendas-v010.png) · [Validação e progressão](docs/VALIDACAO-010.md).
 
 ## Ferramentas e viveiros — versão 0.9.0
 
@@ -112,9 +126,10 @@ O servidor local usa a porta 3000. `PORT=3001 npm start` usa outra porta. També
 npm run build
 npm test
 npm run test:browser
+node scripts/check-progression.mjs
 ```
 
-`npm run build` gera três entradas autocontidas idênticas: `index.html`, `public/index.html` e `dist/JOGAR.html`. Edite `src/index.template.html`, `public/app.js`, `public/game.js`, `public/art.js`, `public/farm3d.js` e `public/style.css`; não edite o HTML gerado manualmente.
+`npm run build` gera três entradas autocontidas idênticas: `index.html`, `public/index.html` e `dist/JOGAR.html`. Edite `src/index.template.html`, `public/app.js`, `public/game.js`, `public/art.js`, `public/farm3d.js`, `public/audio.js` e `public/style.css`; não edite o HTML gerado manualmente.
 
 Os testes de navegador usam Chromium em `/usr/bin/chromium` neste ambiente. Em outra máquina, defina `CHROMIUM_PATH` para o executável instalado. No PowerShell:
 

@@ -14,7 +14,7 @@
   <div class="game-wrapper">
     <header class="topbar">
       <a class="brand" href="./" aria-label="Colheita Feliz, início"><span class="brand-mark" aria-hidden="true">🌻</span><span>Colheita<b>Feliz</b></span></a>
-      <nav class="topnav" aria-label="Menu principal"><span class="nav-active">Minha fazenda</span><button id="open-goals">Missões <span id="quest-count">0/3</span></button><button id="help">Como jogar <span>?</span></button></nav>
+      <nav class="topnav" aria-label="Menu principal"><span class="nav-active">Minha fazenda</span><button id="open-goals">Encomendas <span id="quest-count">0/3</span></button><button id="help">Como jogar <span>?</span></button><button id="sound-toggle" aria-pressed="false" aria-label="Ativar sons">Som: desligado</button></nav>
       <span class="edition">GAME-2 <b>FAZENDA 3D</b></span>
     </header>
     <main class="layout">
@@ -29,7 +29,7 @@
         <div class="farm-stage">
           <svg id="farm" viewBox="0 0 1400 820" role="group" aria-label="Mapa isométrico da fazenda. Use Tab e Enter para escolher um canteiro."></svg>
           <div class="side-actions"><button id="open-shop"><span data-icon="shop"></span><b>Loja</b></button><button id="open-storage"><span data-icon="crate"></span><b>Armazém</b><i id="storage-count">0</i></button><button id="open-bag"><span data-icon="sprout"></span><b>Sementes</b></button><button id="open-expand" aria-label="Expandir canteiros"><span data-icon="sprout"></span><b>Expandir</b><i id="expansion-cost">100</i></button><button id="open-mill"><span data-icon="mill"></span><b>Moinho</b><span class="sr-only" id="mill-status"></span><span class="sr-only" id="feed-summary"></span></button><button id="open-pond"><span data-icon="pond"></span><b>Lago</b><i id="pond-count">+</i></button></div>
-          <div class="ready-badge" id="ready-count" role="status"></div>
+          <div id="action-effects" aria-hidden="true"></div><section id="task-queue" class="task-queue" aria-label="Fila de tarefas" hidden><div><b id="queue-title"></b><button id="cancel-queue" aria-label="Cancelar tarefas pendentes">Cancelar</button></div><ol id="queue-items"></ol></section><button id="order-prompt" class="order-prompt"><span>ENCOMENDAS</span><b id="order-prompt-text">Prepare sua primeira cesta</b><small id="order-prompt-detail">Abra o quadro de pedidos →</small></button><div class="ready-badge" id="ready-count" role="status"></div>
           <div id="plot-tooltip" class="plot-tooltip" role="status"></div>
           <div class="map-caption"><span class="leaf-dot">☀</span><span id="map-hint">Arraste para mover a câmera · Clique num canteiro para cuidar</span></div>
           <div class="zoom-controls"><button id="zoom-out" aria-label="Afastar a câmera">−</button><button id="zoom-in" aria-label="Aproximar a câmera">+</button><button id="fullscreen" aria-label="Tela cheia">⛶</button></div>
@@ -39,7 +39,7 @@
 
         <dialog class="seed-section" id="seed-section" aria-labelledby="seed-title"><div class="seed-heading"><div><h2 id="seed-title">Bolsa de sementes</h2><p class="seed-note" id="seed-note">Escolha o que deseja plantar.</p></div><button id="seed-shop" class="seed-shop">Comprar sementes</button><button id="close-bag" aria-label="Fechar bolsa de sementes">×</button></div><div id="seed-tray" class="seed-tray"></div></dialog>
         <section class="activity-strip"><span class="activity-icon">✦</span><span id="activity-text">Bem-vindo! Sua primeira colheita já está pronta.</span><span class="local-mode">JOGO LOCAL</span></section>
-        <div class="farm-footer"><span id="save-status" class="save-status" role="status">✓ Progresso salvo neste navegador</span><span>Versão de desenvolvimento · 0.9.0</span></div>
+        <div class="farm-footer"><span id="save-status" class="save-status" role="status">✓ Progresso salvo neste navegador</span><span>Versão de desenvolvimento · 0.10.0</span></div>
       </section>
     </main>
   </div>

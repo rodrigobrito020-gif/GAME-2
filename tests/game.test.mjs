@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CROPS, QUESTS, TOOL_SHOP, ownsTool, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, POND, AQUACULTURE, PRODUCTS, FEED_RECIPES, PLOT_LAYOUT, aquaticProduction, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
+import { CROPS, cropStage, orderDetails, QUESTS, TOOL_SHOP, ownsTool, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, POND, AQUACULTURE, PRODUCTS, FEED_RECIPES, PLOT_LAYOUT, aquaticProduction, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
 const NOW=1_800_000_000_000;
 test('novo sítio começa com nove canteiros, sementes e uma colheita pronta',()=>{
   const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,54);
@@ -342,4 +342,45 @@ test('save anterior conserva estoque, saldo, água e criações e recebe slots �
  const s=newGame(NOW);delete s.tools;s.supplies.fertilizer=3;s.coins=900;s.water={amount:17,nextAt:NOW+60000};s.pond={owned:true,stock:[{type:'fish',readyAt:NOW+60000,fedUntil:NOW+240000,pending:2},{type:'shrimp',readyAt:NOW+90000,fedUntil:NOW+360000,pending:1}]};
  const migrated=decodeSave(JSON.stringify(s),NOW);assert.deepEqual(migrated.tools,{weed:false,spray:false,fertilize:true});assert.equal(migrated.coins,900);assert.deepEqual(migrated.water,s.water);assert.deepEqual(migrated.pond.stock.map(a=>a.slot),[0,1]);assert.equal(migrated.pond.stock[0].pending,2);assert.deepEqual(decodeSave(JSON.stringify(migrated),NOW),migrated);
  for(const tools of [null,[],{weed:true},{weed:true,spray:'yes',fertilize:false}])assert.equal(decodeSave(JSON.stringify({...s,tools}),NOW),null);
+});
+
+test('encomendas consomem colheita real, pagam bônus e não duplicam com o mesmo número',()=>{
+ let s=newGame(NOW);s.harvest.turnip=3;
+ const before=structuredClone(s),order=orderDetails(s,s.orders.active[0]);
+ assert.equal(order.coins,38);assert.equal(order.ready,true);
+ const r=action(s,'deliverOrder',{serial:0},NOW);
+ assert.equal(r.ok,true);assert.deepEqual(s,before);assert.equal(r.state.harvest.turnip,1);assert.equal(r.earned,38);assert.equal(r.state.coins,198);assert.equal(r.state.xp,6);assert.equal(r.state.orders.completed,1);
+ assert.equal(r.state.orders.active[0].serial,3);assert.equal(action(r.state,'deliverOrder',{serial:0},NOW).ok,false);
+ assert.deepEqual(decodeSave(JSON.stringify(r.state),NOW).orders,r.state.orders);
+});
+test('encomenda recusa sementes e estoque incompleto sem consumir recursos; venda não entrega pedido',()=>{
+ const s=newGame(NOW);s.harvest.turnip=1;const before=structuredClone(s);
+ for(const serial of [0,-1,1.5,'0',undefined,99]){const r=action(s,'deliverOrder',{serial},NOW);assert.equal(r.ok,false);assert.deepEqual(r.state,before);}
+ const sold=action(s,'sellAll',{},NOW).state;assert.equal(sold.orders.completed,0);assert.deepEqual(sold.orders.active,s.orders.active);
+});
+test('encomendas migram em saves antigos; números repetidos, receitas ou contagem inválida são rejeitados',()=>{
+ const s=newGame(NOW);s.coins=777;delete s.orders;const migrated=decodeSave(JSON.stringify(s),NOW);assert.equal(migrated.coins,777);assert.equal(migrated.orders.active.length,3);const previous=structuredClone(migrated);delete previous.orders;assert.deepEqual(previous,s);
+ for(const alter of [o=>o.active[0].recipe=999,o=>o.active[1].serial=0,o=>o.completed=-1,o=>o.nextSerial=999,o=>o.active.pop(),o=>o.active[0].serial=3]){
+  const bad=structuredClone(migrated);alter(bad.orders);assert.equal(decodeSave(JSON.stringify(bad),NOW),null);
+ }
+});
+test('quadro continua após tutorial e escolhe pedidos de cultivos liberados e criações existentes',()=>{
+ let s=newGame(NOW);s.quests=['plant','harvest','sell'];
+ for(let round=0;round<18;round++){
+  const raw=s.orders.active[round%3],o=orderDetails(s,raw);
+  for(const item of o.items){assert.ok(CROPS[item.id]);assert.ok(CROPS[item.id].level<=levelInfo(s.xp).level);s.harvest[item.id]=item.quantity;}
+  const r=action(s,'deliverOrder',{serial:raw.serial},NOW+round);assert.equal(r.ok,true);s=decodeSave(JSON.stringify(r.state),NOW+round);
+ }
+ assert.equal(s.orders.completed,18);assert.equal(s.orders.active.length,3);assert.equal(new Set(s.orders.active.map(o=>o.serial)).size,3);
+});
+test('encomenda de produtos animais e aquáticos consome o armazém sem alterar estoque vivo',()=>{
+ let s=newGame(NOW);s.products.fish=4;s.orders.active[0].recipe=14;
+ const r=action(s,'deliverOrder',{serial:0},NOW);assert.equal(r.ok,true);assert.equal(r.state.products.fish,1);assert.equal(r.earned,90);assert.deepEqual(r.state.pond,s.pond);assert.deepEqual(r.state.seeds,s.seeds);
+});
+test('estágios da planta: semente seca não avança offline, broto e folhagem antecedem fruto pronto',()=>{
+ let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+ assert.equal(cropStage(s.plots[2],NOW+86400_000),'seed');s=action(s,'water',{index:2},NOW+86400_000).state;
+ const start=NOW+86400_000,end=s.plots[2].readyAt;
+ assert.equal(cropStage(s.plots[2],start),'sprout');assert.equal(cropStage(s.plots[2],start+(end-start)*.5),'growing');assert.equal(cropStage(s.plots[2],end),'ready');
+ assert.equal(cropStage(s.plots[3],end),'locked');assert.equal(cropStage(s.plots[6],end),'empty');
 });

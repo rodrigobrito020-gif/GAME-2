@@ -23,7 +23,7 @@ test('andar cancela uma rega pendente sem gastar água; personagem chega ao cant
 });
 for(const view of ['3d','classic'])test(`expansão destacada e botão dedicado liberam o terreno correto em ${view}`,async({page})=>{
  await page.goto(view==='classic'?'/?view=classic':'/');await expect(page.locator('.plot.locked')).toHaveCount(45);await expect(page.locator('#expansion-cost')).toHaveText('100');
- if(view==='3d'){await expect(page.locator('.expansion-hitbox')).toHaveCount(45);await expect(page.locator('[data-plot="3"]')).toHaveAttribute('aria-label',/100 moedas/);}
+ if(view==='3d'){await expect(page.locator('.expansion-plaque')).toHaveCount(1);await expect(page.locator('[data-plot="3"] .expansion-plaque')).toContainText('100 moedas');await expect(page.locator('[data-plot="3"]')).toHaveAttribute('aria-label',/100 moedas/);}
  else await expect(page.locator('[data-plot="3"]')).toContainText('EXPANDIR');
  await page.locator('#open-expand').click();await expect(page.locator('.expansion-price')).toContainText('100');await page.locator('[data-expand]').click();await expect(page.locator('#plot-count')).toHaveText('10 canteiros');await expect(page.locator('.plot.locked')).toHaveCount(44);expect((await saved(page)).plots[3].unlocked).toBe(true);await expect(page.locator('#expansion-cost')).toHaveText('175');
  await page.locator('#open-expand').click();await expect(page.locator('[data-expand]')).toBeDisabled();

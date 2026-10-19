@@ -1,4 +1,4 @@
-import { CROPS, PLOT_LAYOUT, ANIMALS, POND, AQUACULTURE, animalProduction, aquaticProduction, expansionPrice, plotStatus, plotCare, progress, growthRemaining } from './game.js';
+import { CROPS, PLOT_LAYOUT, ANIMALS, POND, AQUACULTURE, animalProduction, aquaticProduction, expansionPrice, plotStatus, cropStage, plotCare, progress, growthRemaining } from './game.js';
 
 // O atlas é embutido no HTML. Um único Blob evita repetir megabytes em cada ícone.
 function atlasUrl(source){if(!source.startsWith('data:'))return source;const comma=source.indexOf(','),bytes=Uint8Array.from(atob(source.slice(comma+1)),c=>c.charCodeAt(0));return URL.createObjectURL(new Blob([bytes],{type:source.slice(5,source.indexOf(';'))}));}
@@ -91,7 +91,7 @@ export function plotMarkup(state, now) {
     let plants='',details='';
     if(p.crop)for(const [dx,dy]of[[-35,-5],[0,-23],[35,-5],[0,15]]){
       const scale=ready?.8:grown>.4?.55:.32;
-      const picture=(ready||grown>.45)?cropArt(p.crop):'<path d="M30 54V33m0 7C12 44 10 25 12 24c13-2 21 5 18 16Zm0-7c-2-16 10-21 22-20 0 15-10 22-22 20Z" fill="#6d9f39" stroke="#41752b" stroke-width="2"/>';
+      const picture=cropStage(p,now)==='seed'?'<ellipse cx="30" cy="48" rx="12" ry="6" fill="#b28b59"/>':ready?cropArt(p.crop):'<path d="M30 54V33m0 7C12 44 10 25 12 24c13-2 21 5 18 16Zm0-7c-2-16 10-21 22-20 0 15-10 22-22 20Z" fill="#6d9f39" stroke="#41752b" stroke-width="2"/>';
       plants+=`<g transform="translate(${dx-32*scale} ${dy-49*scale}) scale(${scale})">${picture}</g>`;
     }
     if(!locked){
@@ -102,8 +102,8 @@ export function plotMarkup(state, now) {
 
     }
     const marker=ready?'<g class="ready-float" transform="translate(0 -57)"><rect x="-17" y="-18" width="34" height="27" rx="12" fill="#fff9de" stroke="#bca45d" stroke-width="1.5"/><path d="m-6-5 4 4 9-10" fill="none" stroke="#628b4c" stroke-width="3" stroke-linecap="round"/></g>':status==='dry'?'<g class="dry-marker" transform="translate(0 -47)"><circle cy="-4" r="12" fill="#fff0d0" stroke="#c69a51" stroke-width="1.4"/><path d="M0-12C-13 2-6 8 0 8S13 2 0-12Z" fill="#7fbcc6"/><path d="M0-7v7m0 3v1" stroke="#fff9de" stroke-width="1.5"/></g>':'';
-    return `<g class="plot ${status} ${p.watered?'watered':''}" role="button" tabindex="0" data-plot="${i}" aria-label="${label}" transform="translate(${x} ${y}) scale(.52)"><title>${label}</title><defs><clipPath id="bed-${i}"><path d="${shape}"/></clipPath></defs>
-    ${locked?`<path class="tile-top" d="${shape}" fill="#ddbe50" fill-opacity=".35" stroke="#ffe58a" stroke-width="3" stroke-dasharray="8 4"/><rect x="-39" y="-15" width="78" height="32" rx="6" fill="#fff2b9" stroke="#b58935"/><text x="0" y="-2" text-anchor="middle" fill="#785021" font-size="10" font-weight="bold">+ EXPANDIR</text><text x="0" y="11" text-anchor="middle" fill="#785021" font-size="9">${expansionPrice(state)} moedas</text>`:`<path class="tile-edge" d="${shape}" transform="translate(0 5)" fill="#403522" opacity=".7"/><path class="tile-top" d="${shape}" fill="${p.watered?'url(#wet-soil)':'url(#soil)'}" stroke="#8f7046" stroke-width="1.2"/><g clip-path="url(#bed-${i})"><use href="#soil-paint" class="soil-surface ${p.watered?'wet':''}"/>${details}</g>${plants}
+    return `<g class="plot ${status} ${p.watered?'watered':''}" role="button" tabindex="0" data-plot="${i}" data-stage="${cropStage(p,now)}" aria-label="${label}" transform="translate(${x} ${y}) scale(.52)"><title>${label}</title><defs><clipPath id="bed-${i}"><path d="${shape}"/></clipPath></defs>
+    ${locked?`<path class="tile-top" d="${shape}" fill="#87ad53" fill-opacity=".24" stroke="#9abc67" stroke-width="1"/><path d="M-40 6q-12-24-7-25 14 5 10 23 5-30 12-20 6 12-12 23M22 0q-8-23-4-21 14 8 10 21 9-20 14-13 0 8-14 15" fill="#689344"/><ellipse cx="25" cy="16" rx="13" ry="7" fill="#a6a391"/>${i===state.plots.findIndex(p=>!p.unlocked)?`<rect x="-49" y="-18" width="98" height="38" rx="6" fill="#fff2b9" stroke="#b58935"/><text x="0" y="-1" text-anchor="middle" fill="#47602f" font-size="13" font-weight="bold">+ EXPANDIR</text><text x="0" y="14" text-anchor="middle" fill="#785021" font-size="11">${expansionPrice(state)} moedas</text>`:''}`:`<path class="tile-edge" d="${shape}" transform="translate(0 5)" fill="#403522" opacity=".7"/><path class="tile-top" d="${shape}" fill="${p.watered?'url(#wet-soil)':'url(#soil)'}" stroke="#8f7046" stroke-width="1.2"/><g clip-path="url(#bed-${i})"><use href="#soil-paint" class="soil-surface ${p.watered?'wet':''}"/>${details}</g>${plants}
     ${care.weeds?'<path d="M-41 22q-18-22-12-21 15 3 13 20-1-29 6-28 9 13-5 28 16-23 21-16 0 12-23 17Z" fill="#679039" stroke="#3f6c26" stroke-width="1.2"/>':''}
     ${care.pests?'<g transform="translate(40 -18)"><ellipse cx="-7" cy="-5" rx="8" ry="5" fill="#d6e6dc" stroke="#66856e"/><ellipse cx="7" cy="-5" rx="8" ry="5" fill="#d6e6dc" stroke="#66856e"/><ellipse cy="1" rx="5" ry="9" fill="#d88453" stroke="#59402a" stroke-width="2"/></g>':''}${marker}`}</g>`;
   }).join('');
