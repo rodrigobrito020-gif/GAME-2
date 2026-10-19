@@ -9,7 +9,7 @@ async function finish(page){await expect(canvas(page)).toHaveAttribute('data-act
 async function perform(page,type,index){await page.locator(`[data-tool="${type}"]`).click();await page.locator(`[data-plot="${index}"]`).click();await expect(canvas(page)).not.toHaveAttribute('data-pending','0');await finish(page);}
 test('3D real: cesta, percurso e colheita somente no movimento, sem duplicar cliques',async({page})=>{
  const errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.isNavigationRequest())requests.push(r.url());});
- await page.goto('/');await expect(canvas(page)).toHaveAttribute('data-renderer','three');await expect(page.locator('[data-plot]')).toHaveCount(16);
+ await page.goto('/');await expect(canvas(page)).toHaveAttribute('data-renderer','three');await expect(page.locator('[data-plot]')).toHaveCount(54);
  await page.locator('[data-plot="0"]').dblclick();expect((await saved(page)).harvest.turnip).toBe(0);
  await expect(canvas(page)).toHaveAttribute('data-action-phase','walking');await expect(canvas(page)).toHaveAttribute('data-held-tool','harvest');
  await expect(canvas(page)).toHaveAttribute('data-action-phase','acting',{timeout:12000});await finish(page);
@@ -39,7 +39,7 @@ test('3D: zoom por botões e scroll mantém canteiros clicáveis e expansão',as
 });
 test('3D: criação de galinha, alimentação e coleta usam estado real',async({page})=>{
  await page.clock.install({time:new Date('2026-10-19T15:00:00Z')});await page.goto('/');await page.locator('#open-shop').click();await page.locator('[data-shop-tab="animals"]').click();await page.locator('[data-buy-animal="chicken"]').click();await page.locator('#close-modal').click();
- await page.clock.fastForward(250000);await page.locator('[data-animal="0"]').click();await expect(page.locator('.animal-detail')).toContainText('produção pausada');await page.locator('[data-collect-animal]').click();expect((await saved(page)).products.egg).toBe(4);await expect(page.locator('[data-collect-animal]')).toBeDisabled();await page.locator('[data-feed]').click();expect((await saved(page)).coins).toBe(95);
+ await page.evaluate(k=>{const s=JSON.parse(localStorage.getItem(k));s.feed.poultry=1;localStorage.setItem(k,JSON.stringify(s));},key);await page.reload();await page.clock.fastForward(250000);await page.locator('[data-animal="0"]').click();await expect(page.locator('.animal-detail')).toContainText('produção pausada');await page.locator('[data-collect-animal]').click();expect((await saved(page)).products.egg).toBe(4);await expect(page.locator('[data-collect-animal]')).toBeDisabled();await page.locator('[data-feed]').click();expect((await saved(page)).coins).toBe(100);
 });
 test('3D em celular: canteiro tocável, animação e interface sem exceder largura',async({page})=>{
  await page.setViewportSize({width:390,height:844});await page.goto('/');await expect(canvas(page)).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

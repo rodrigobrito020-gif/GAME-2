@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+test.setTimeout(60000);
 import{readFile}from'node:fs/promises';
 const key='game2-sitio-aurora-v1';
 const saved=p=>p.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);

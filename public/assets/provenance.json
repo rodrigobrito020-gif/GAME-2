@@ -13,5 +13,59 @@
     "encoding": "Resampled to 384x384 for small terrain tiles; lossless WebP encoding",
     "width": 384,
     "height": 384
+  },
+  "produce-painted.png": {
+    "source": "Original inventory art generated with image_gen for GAME-2, based on the user-approved painterly visual direction",
+    "sha256": "70d06fc7f046a2ec4d18ffa5faaa8d178fc99ece635e41cdd40abe5f391c33ae",
+    "encoding": "Unmodified PNG; atlas cells selected by SVG viewport, no baked text",
+    "width": 1254,
+    "height": 1254,
+    "layout": "4x4: turnip, carrot, wheat, soybean; corn, alfalfa, strawberry, tomato; pumpkin, watermelon, egg, milk; wool, fish, shrimp, feed"
+  },
+  "tools-painted.png": {
+    "source": "Original inventory art generated with image_gen for GAME-2, based on the user-approved painterly visual direction",
+    "sha256": "0d8a723b8fb4de5e9079a3705d0057c1d34a6d9b1c626a97277e105ed62c9a99",
+    "encoding": "Unmodified PNG; atlas cells selected by SVG viewport, no baked text",
+    "width": 1254,
+    "height": 1254,
+    "layout": "3x3: glove, seeds, watering can; basket, hoe, sprayer; fertilizer, mill, feed"
+  },
+  "animals-painted.png": {
+    "source": "Original animal and pond inventory art generated with image_gen for GAME-2, matching the user-approved painterly direction",
+    "sha256": "ea8754542314de1731819902d8c27094bb764029cc3fc283a2c12e704b55ac5f",
+    "width": 1254,
+    "height": 1254,
+    "encoding": "Unmodified PNG, SVG viewport atlas cells",
+    "layout": "2x2: chicken, cow; sheep, pond"
+  },
+  "produce-painted.webp": {
+    "source": "Original inventory art generated with image_gen for GAME-2, based on the user-approved painterly visual direction",
+    "sha256": "2e3b052ac615e012e7c32837b1130ecdff98d8a8e5c6f53f0f9707338f5b1504",
+    "encoding": "Lossless WebP, exact transparent RGB preserved; decoded RGBA SHA-256 verified identical to generated PNG",
+    "width": 1254,
+    "height": 1254,
+    "layout": "4x4: turnip, carrot, wheat, soybean; corn, alfalfa, strawberry, tomato; pumpkin, watermelon, egg, milk; wool, fish, shrimp, feed",
+    "source_sha256": "70d06fc7f046a2ec4d18ffa5faaa8d178fc99ece635e41cdd40abe5f391c33ae",
+    "decoded_rgba_sha256": "1b84c4327d7e1ceff2ae927c07217bb5c6eb20d598a627880653175ae8d7bf4f"
+  },
+  "tools-painted.webp": {
+    "source": "Original inventory art generated with image_gen for GAME-2, based on the user-approved painterly visual direction",
+    "sha256": "23851ed12bed7f961c1c884e6a9202654d15b2e3b4c9982376eec9bf77b9d2bb",
+    "encoding": "Lossless WebP, exact transparent RGB preserved; decoded RGBA SHA-256 verified identical to generated PNG",
+    "width": 1254,
+    "height": 1254,
+    "layout": "3x3: glove, seeds, watering can; basket, hoe, sprayer; fertilizer, mill, feed",
+    "source_sha256": "0d8a723b8fb4de5e9079a3705d0057c1d34a6d9b1c626a97277e105ed62c9a99",
+    "decoded_rgba_sha256": "ab76cfd17974eef9bccf0d71c5df7a5a201dc56cd4c7c44fb817285c1d6554e3"
+  },
+  "animals-painted.webp": {
+    "source": "Original animal and pond inventory art generated with image_gen for GAME-2, matching the user-approved painterly direction",
+    "sha256": "8e7578465fd49a4eed10ffe50f415e3f18cf7d170eca59a7aeb93eec0eb7d4e7",
+    "width": 1254,
+    "height": 1254,
+    "encoding": "Lossless WebP, exact transparent RGB preserved; decoded RGBA SHA-256 verified identical to generated PNG",
+    "layout": "2x2: chicken, cow; sheep, pond",
+    "source_sha256": "ea8754542314de1731819902d8c27094bb764029cc3fc283a2c12e704b55ac5f",
+    "decoded_rgba_sha256": "8ea22874e472b87a0c5a8ab70b1d83e1be7e273e3af48a8d4d547ced881e4e16"
   }
 }

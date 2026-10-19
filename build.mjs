@@ -5,9 +5,9 @@ const read=name=>readFile(new URL(name,base),'utf8');
 const { build }=await import('esbuild');
 const bundled=await build({entryPoints:[fileURLToPath(new URL('public/app.js',base))],bundle:true,format:'iife',write:false,minify:true,legalComments:'inline',target:'es2022'});
 let source=bundled.outputFiles[0].text.replace(/[ \t]+$/gm,'');
-for(const name of ['farm-painted.webp','soil-painted.webp']) {
+for(const name of ['farm-painted.webp','soil-painted.webp','produce-painted.webp','tools-painted.webp','animals-painted.webp']) {
   const asset=await readFile(new URL('public/assets/'+name,base));
-  source=source.replaceAll('./assets/'+name,`data:image/webp;base64,${asset.toString('base64')}`);
+  source=source.replaceAll('./assets/'+name,`data:image/${name.endsWith('.png')?'png':'webp'};base64,${asset.toString('base64')}`);
 }
 source=source.replaceAll('</script','<\\/script');
 let html=await read('src/index.template.html');

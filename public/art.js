@@ -1,6 +1,17 @@
-import { CROPS, ANIMALS, POND, animalProduction, aquaticProduction, expansionPrice, plotStatus, plotCare, progress, growthRemaining } from './game.js';
+import { CROPS, PLOT_LAYOUT, ANIMALS, POND, animalProduction, aquaticProduction, expansionPrice, plotStatus, plotCare, progress, growthRemaining } from './game.js';
+
+// O atlas é embutido no HTML. Um único Blob evita repetir megabytes em cada ícone.
+function atlasUrl(source){if(!source.startsWith('data:'))return source;const comma=source.indexOf(','),bytes=Uint8Array.from(atob(source.slice(comma+1)),c=>c.charCodeAt(0));return URL.createObjectURL(new Blob([bytes],{type:source.slice(5,source.indexOf(';'))}));}
+const produceAtlas=atlasUrl('./assets/produce-painted.webp'),toolsAtlas=atlasUrl('./assets/tools-painted.webp'),animalsAtlas=atlasUrl('./assets/animals-painted.webp');
+const produceCells=['turnip','carrot','wheat','soybean','corn','alfalfa','strawberry','tomato','pumpkin','watermelon','egg','milk','wool','fish','shrimp','feed'];
+// Os desenhos têm margens diferentes. Use suas regiões completas, sem cortar raízes ou folhas.
+const produceRegions=[[0,10,331,318],[340,8,301,323],[642,5,302,325],[948,22,302,305],[10,333,316,304],[330,334,311,303],[651,335,292,296],[950,338,296,286],[10,641,314,278],[325,638,326,286],[680,650,245,270],[1000,630,190,290],[0,931,325,307],[327,950,327,252],[644,922,311,303],[954,926,289,302]];
+const toolCells=['hand','sprout','water','basket','weed','spray','fertilizer','mill','feed'];
+function atlasIcon(atlas,index,columns,cls){return `<svg class="${cls}" viewBox="${index%columns*64+2} ${Math.floor(index/columns)*64+2} 60 60" aria-hidden="true"><image href="${atlas}" width="${columns*64}" height="${columns*64}" preserveAspectRatio="none"/></svg>`;}
 
 export const icons = {
+  mill:'<path d="m8 30 3-17h12l3 17ZM16 5v14M9 12h15m-14-7 14 14m-14 0L24 5M8 30h20M15 30v-7h5v7"/>',
+  feed:'<path d="m10 3 13 1-3 6 8 18c-7 4-18 4-24-1l8-17ZM11 10h11M16 24v-8m0 4c-5 0-7-4-6-5 4-1 6 2 6 5m0 0c0-5 4-7 7-6-1 4-3 6-7 6"/>',
   pond: '<path d="M3 21c0-6 6-11 13-11s15 5 15 11-8 9-15 9S3 27 3 21Z"/><path d="m9 20 7-4 7 4-7 4Zm14 0 4-4v8Zm-14-7V3m-4 8V6m5 18 3 1m8 0 3-1"/>',
   hand: '<path d="m13 21-5-5c-2-2 0-4 2-2l2 1V5a2 2 0 0 1 4 0v6-8a2 2 0 0 1 4 0v8-6a2 2 0 0 1 4 0v7-4a2 2 0 0 1 4 0v9c0 6-3 10-8 10-3 0-5-2-7-6Z"/>',
   sprout: '<path d="M16 28V14M16 19C4 21 3 9 4 7c8-1 13 4 12 12Zm0-5C15 5 22 3 29 3c0 9-6 13-13 11Z"/>',
@@ -15,9 +26,12 @@ export const icons = {
   spray: '<path d="M9 16h15v14H9Zm3 0V9h9v7M13 9V4h13m-6 0v5m7 1 3 2m-2-5h3m-5 7 2 2"/>',
   fertilizer: '<path d="m10 4 14 1-3 6 7 17c-7 4-18 4-24-1l8-16Zm1 7h11"/><path d="M16 25v-8m0 4c-7 0-8-6-7-6 5-1 7 2 7 6m0-2c0-6 4-8 8-7 0 4-4 7-8 7"/>'
 };
-export function icon(name, cls = '') { return `<svg class="icon ${cls}" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.sprout}</svg>`; }
+export function icon(name, cls = '') { if(name==='pond')return atlasIcon(animalsAtlas,3,2,`icon painted-icon ${cls}`);const cell=toolCells.indexOf(name);if(cell>=0)return atlasIcon(toolsAtlas,cell,3,`icon painted-icon ${cls}`);return `<svg class="icon ${cls}" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.sprout}</svg>`; }
 
 export function cropArt(id) {
+  if(id==='soybean')return '<path d="M13 50C3 30 24 9 53 12c6 16-8 43-29 43-5 0-8-2-11-5Z" fill="#6ead4d" stroke="#3f8339" stroke-width="2"/><path d="M17 46Q32 33 49 17" fill="none" stroke="#abd17a" stroke-width="3"/><g fill="#d9df96" stroke="#548c39" stroke-width="1.5"><ellipse cx="22" cy="40" rx="7" ry="8"/><ellipse cx="33" cy="29" rx="7" ry="8"/><ellipse cx="44" cy="19" rx="6" ry="7"/></g>';
+  if(id==='alfalfa')return '<path d="M29 58 30 16m2 28L15 26m16 7 18-18" fill="none" stroke="#398646" stroke-width="3"/><g fill="#6ab858" stroke="#388545" stroke-width="1"><ellipse cx="23" cy="25" rx="6" ry="10" transform="rotate(-45 23 25)"/><ellipse cx="38" cy="32" rx="6" ry="10" transform="rotate(45 38 32)"/><ellipse cx="20" cy="42" rx="6" ry="10" transform="rotate(-45 20 42)"/></g><g fill="#a174c9"><circle cx="30" cy="11" r="6"/><circle cx="26" cy="16" r="5"/><circle cx="34" cy="17" r="5"/></g>';
+  if(id==='wool')return '<path d="M8 39C-2 28 9 11 23 13c5-14 24-10 27 2 16 1 20 23 8 30-2 16-25 20-33 8C11 58 1 48 8 39Z" fill="#faf6e8" stroke="#b8b4a7" stroke-width="2"/><path d="M18 26q15-17 28 0M13 35q21-21 40 0M18 45q15-17 28 0" fill="none" stroke="#d3cdbe" stroke-width="3" stroke-linecap="round"/>';
   if(id==='fish')return '<path d="M10 32C19 13 42 15 51 29l10-9v24l-10-9C40 49 20 50 10 32Z" fill="#2eadd7" stroke="#1479ae" stroke-width="2"/><path d="m27 21 9-10 5 12m-14 20 8 9 5-12" fill="#ffc64a"/><circle cx="20" cy="29" r="3" fill="#123f60"/><path d="M29 26q-5 8 0 15" fill="none" stroke="#bceaff" stroke-width="3" stroke-linecap="round"/>';
   if(id==='shrimp')return '<path d="M42 13C19 6 7 20 12 37c5 16 24 21 39 11l-7-8c-9 6-19 3-21-5-2-10 7-15 16-11Z" fill="#fa9563" stroke="#c9663a" stroke-width="2"/><path d="m49 45 12-8-3 16-13-3m-28-30 10 5m-14 5 10 2m-7 9 10-3m-2 11 8-7m5 12 2-10" fill="none" stroke="#c9663a" stroke-width="2"/><path d="M37 17Q51 1 61 10M37 19Q56 9 62 19" fill="none" stroke="#ce6e39" stroke-width="2" stroke-linecap="round"/><circle cx="36" cy="15" r="2.5" fill="#603721"/>';
   if(id==='egg')return '<path d="M12 40C12 24 24 7 32 7s22 17 22 33c0 25-42 25-42 0Z" fill="#fff1c6" stroke="#c7b184" stroke-width="2"/><path d="M23 23q-8 15-3 21" fill="none" stroke="#fffdf1" stroke-width="5" stroke-linecap="round"/>';
@@ -32,7 +46,11 @@ export function cropArt(id) {
   if (id === 'corn') return '<path d="M22 45C9 11 25 1 35 9c9 8 5 24 1 35Z" fill="#f4cd5d" stroke="#d6ad3e" stroke-width="1.5"/><path d="m25 12 5 34m-1-36 5 33M19 20h19m-19 7h19m-17 7h15" fill="none" stroke="#d8ab33" stroke-width="2"/><path d="M31 58C9 56 6 28 11 26c18 10 23 21 20 32Z" fill="#679b58"/><path d="M31 58c-6-18 8-30 22-35-2 18-7 34-22 35Z" fill="#84b56d"/>';
   return '<path d="m30 15 2-9 6 1-3 10" fill="#5b7f42"/><ellipse cx="31" cy="36" rx="25" ry="20" fill="#e88e42" stroke="#cf7634" stroke-width="1.5"/><ellipse cx="31" cy="36" rx="14" ry="20" fill="#f1a04b" stroke="#d47c32" stroke-width="1.5"/><ellipse cx="31" cy="36" rx="5" ry="20" fill="#f6b45f"/>';
 }
-export function cropIcon(id, cls = '') { return `<svg class="crop-icon ${cls}" viewBox="0 0 64 64" aria-hidden="true">${cropArt(id)}</svg>`; }
+export function cropIcon(id, cls = '') {
+  const cell=produceCells.indexOf(id);
+  if(cell>=0){const region=produceRegions[cell],[,,w,h]=region;return `<svg class="crop-icon painted-icon ${cls}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><svg width="${w}" height="${h}" viewBox="${region.join(' ')}" overflow="hidden"><image href="${produceAtlas}" width="1254" height="1254" preserveAspectRatio="none"/></svg></svg>`;}
+  return `<svg class="crop-icon ${cls}" viewBox="0 0 64 64" aria-hidden="true">${cropArt(id)}</svg>`;
+}
 export function landscape() {
   const grass=[];
   for(let i=0;i<40;i++) {
@@ -65,7 +83,7 @@ export function landscape() {
 
 export function plotMarkup(state, now) {
   return state.plots.map((p,i)=>{
-    const row=Math.floor(i/4),col=i%4,x=475+(col-row)*83,y=414+(row+col)*44,status=plotStatus(p,now);
+    const pos=PLOT_LAYOUT[i],row=(pos.z+.35)/2.55,col=(pos.x+19.85)/2.55,x=355+(col-row)*40,y=450+(row+col)*21,status=plotStatus(p,now);
     const grown=progress(p,now),ready=status==='ready',care=plotCare(p,now),locked=status==='locked';
     const label=locked?`Terreno ${i+1}, expandir`:status==='empty'?`Canteiro ${i+1}, vazio`:`${CROPS[p.crop].name}, ${ready?'pronta para colher':status==='dry'?'seca, crescimento pausado; regue para crescer':Math.ceil(growthRemaining(p,now)/1000)+' segundos restantes'}`;
     const shape='M-70-5Q-78-1-72 5L-5 39Q1 44 8 39L72 5Q80 0 72-5L7-39Q0-43-8-38Z';
@@ -83,7 +101,7 @@ export function plotMarkup(state, now) {
 
     }
     const marker=ready?'<g class="ready-float" transform="translate(0 -57)"><rect x="-17" y="-18" width="34" height="27" rx="12" fill="#fff9de" stroke="#bca45d" stroke-width="1.5"/><path d="m-6-5 4 4 9-10" fill="none" stroke="#628b4c" stroke-width="3" stroke-linecap="round"/></g>':status==='dry'?'<g class="dry-marker" transform="translate(0 -47)"><circle cy="-4" r="12" fill="#fff0d0" stroke="#c69a51" stroke-width="1.4"/><path d="M0-12C-13 2-6 8 0 8S13 2 0-12Z" fill="#7fbcc6"/><path d="M0-7v7m0 3v1" stroke="#fff9de" stroke-width="1.5"/></g>':'';
-    return `<g class="plot ${status} ${p.watered?'watered':''}" role="button" tabindex="0" data-plot="${i}" aria-label="${label}" transform="translate(${x} ${y})"><title>${label}</title><defs><clipPath id="bed-${i}"><path d="${shape}"/></clipPath></defs>
+    return `<g class="plot ${status} ${p.watered?'watered':''}" role="button" tabindex="0" data-plot="${i}" aria-label="${label}" transform="translate(${x} ${y}) scale(.52)"><title>${label}</title><defs><clipPath id="bed-${i}"><path d="${shape}"/></clipPath></defs>
     ${locked?`<path class="tile-top" d="${shape}" fill="#ddbe50" fill-opacity=".35" stroke="#ffe58a" stroke-width="3" stroke-dasharray="8 4"/><rect x="-39" y="-15" width="78" height="32" rx="6" fill="#fff2b9" stroke="#b58935"/><text x="0" y="-2" text-anchor="middle" fill="#785021" font-size="10" font-weight="bold">+ EXPANDIR</text><text x="0" y="11" text-anchor="middle" fill="#785021" font-size="9">${expansionPrice(state)} moedas</text>`:`<path class="tile-edge" d="${shape}" transform="translate(0 5)" fill="#403522" opacity=".7"/><path class="tile-top" d="${shape}" fill="${p.watered?'url(#wet-soil)':'url(#soil)'}" stroke="#8f7046" stroke-width="1.2"/><g clip-path="url(#bed-${i})"><use href="#soil-paint" class="soil-surface ${p.watered?'wet':''}"/>${details}</g>${plants}
     ${care.weeds?'<path d="M-41 22q-18-22-12-21 15 3 13 20-1-29 6-28 9 13-5 28 16-23 21-16 0 12-23 17Z" fill="#679039" stroke="#3f6c26" stroke-width="1.2"/>':''}
     ${care.pests?'<g transform="translate(40 -18)"><ellipse cx="-7" cy="-5" rx="8" ry="5" fill="#d6e6dc" stroke="#66856e"/><ellipse cx="7" cy="-5" rx="8" ry="5" fill="#d6e6dc" stroke="#66856e"/><ellipse cy="1" rx="5" ry="9" fill="#d88453" stroke="#59402a" stroke-width="2"/></g>':''}${marker}`}</g>`;
@@ -91,10 +109,11 @@ export function plotMarkup(state, now) {
 }
 
 export function animalArt(type) {
+  if(type==='sheep')return '<path d="M22 47v17m26-18v18" stroke="#796b58" stroke-width="6" stroke-linecap="round"/><g fill="#fbf7eb" stroke="#c4bba7" stroke-width="1.5"><circle cx="18" cy="31" r="14"/><circle cx="30" cy="25" r="16"/><circle cx="45" cy="29" r="15"/><circle cx="44" cy="43" r="14"/><circle cx="25" cy="43" r="16"/></g><ellipse cx="56" cy="32" rx="11" ry="15" fill="#827364"/><path d="m48 22-12-5 5 11m21-6 11-6-5 12" fill="#827364"/><circle cx="53" cy="29" r="2" fill="#201f1b"/><circle cx="61" cy="29" r="2" fill="#201f1b"/>';
   if(type==='chicken')return '<ellipse cx="31" cy="42" rx="24" ry="17" fill="#fffbe5" stroke="#c5b780" stroke-width="2"/><path d="m10 36-8-15 14 8" fill="#f4f0d5" stroke="#c5b780" stroke-width="2"/><circle cx="47" cy="25" r="12" fill="#fffbe5" stroke="#c5b780" stroke-width="2"/><path d="M41 15q-4-12 3-12 5 0 5 9 4-10 9-6 5 7-6 13" fill="#d65c3c"/><path d="m57 23 9 5-10 5" fill="#ebba4d"/><circle cx="50" cy="23" r="2" fill="#5e4b2e"/><path d="m24 56-2 8m16-7 3 8" stroke="#b88934" stroke-width="3"/><path d="M24 37q18-7 17 8-3 12-17-8" fill="#eee6bd"/>';
   return '<path d="M11 41V65m15-19v20m24-20 2 21m12-28 2 24" stroke="#6c6151" stroke-width="6"/><ellipse cx="35" cy="32" rx="32" ry="21" fill="#fff9e5" stroke="#aaa086" stroke-width="2"/><path d="M13 15q22-8 17 11-6 18-21 8m30-21q17 1 17 15-15 10-16-15" fill="#625b50"/><path d="M57 18 64 4l6 16m-5-9 12-7 9 24-12 23-18-5Z" fill="#fff5dd" stroke="#a69a7b" stroke-width="2"/><ellipse cx="67" cy="40" rx="14" ry="9" fill="#e9bbab"/><circle cx="65" cy="25" r="2" fill="#534832"/><path d="m58 10-6-9m22 7 4-9" stroke="#b69f70" stroke-width="4" stroke-linecap="round"/>';
 }
-export function animalIcon(type) {return `<svg class="animal-icon" viewBox="-5 -10 100 90" aria-hidden="true">${animalArt(type)}</svg>`;}
+export function animalIcon(type) {const cell=['chicken','cow','sheep'].indexOf(type);return atlasIcon(animalsAtlas,Math.max(0,cell),2,'animal-icon painted-icon');}
 export function pondMarkup(state,now=Date.now()) {
   const pond=state.pond||{owned:false,stock:[]},ready=pond.stock.reduce((n,a)=>n+aquaticProduction(a,now).amount,0);
   const fish=pond.stock.some(a=>a.type==='fish')?'<g transform="translate(110 145) scale(.6)"><g class="pond-fish">'+cropArt('fish')+'</g></g>':'';

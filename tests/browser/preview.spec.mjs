@@ -20,7 +20,7 @@ for(const width of [980,390]) {
     await page.goto('/preview-host.html');
     await page.locator('iframe').evaluate((el,html)=>{el.srcdoc=html.replace('<html lang=','<html data-view="classic" lang=');},html);
     const preview=page.frameLocator('iframe');
-    await expect(preview.locator('#farm [data-plot]')).toHaveCount(16);
+    await expect(preview.locator('#farm [data-plot]')).toHaveCount(54);
     await expect(preview.locator('.layout')).toHaveCSS('display',width===390?'flex':'grid');
     await expect(preview.locator('.farm-stage')).toHaveCSS('position','relative');
     await expect(preview.locator('#save-status')).toContainText('Salvamento indisponível');

@@ -7,8 +7,15 @@ export const CROPS = Object.freeze({
   corn: { name: 'Milho', plural: 'Milho', color: '#ecc740', cost: 40, sell: 95, duration: 180_000, xp: 23, level: 3 },
   pumpkin: { name: 'Abóbora', plural: 'Abóboras', color: '#db7834', cost: 65, sell: 160, duration: 300_000, xp: 35, level: 4 },
   tomato: { name: 'Tomate', plural: 'Tomates', color: '#e35b38', cost: 20, sell: 48, duration: 90_000, xp: 11, level: 2 },
-  watermelon: { name: 'Melancia', plural: 'Melancias', color: '#6fa33d', cost: 85, sell: 215, duration: 360_000, xp: 43, level: 5 }
+  watermelon: { name: 'Melancia', plural: 'Melancias', color: '#6fa33d', cost: 85, sell: 215, duration: 360_000, xp: 43, level: 5 },
+  soybean: { name:'Soja', plural:'Soja', color:'#86ab42', cost:11, sell:24, duration:60_000, xp:7, level:1 },
+  alfalfa: { name:'Alfafa', plural:'Alfafa', color:'#4a9d52', cost:9, sell:20, duration:45_000, xp:6, level:1 }
 });
+// Os primeiros 16 índices mantêm suas posições para preservar os saves antigos.
+const plotLayout=Array.from({length:16},(_,i)=>({x:-7.1+i%4*2.55,z:-.35+Math.floor(i/4)*2.55}));
+for(let row=0;row<6;row++)for(let col=0;col<9;col++)if(col<5||row>=4)plotLayout.push({x:-19.85+col*2.55,z:-.35+row*2.55});
+export const PLOT_LAYOUT=Object.freeze(plotLayout.map(Object.freeze));
+const emptyPlot=()=>({unlocked:false,crop:null,plantedAt:0,readyAt:0,watered:false});
 export const QUESTS = [
   { id: 'plant', title: 'Uma semente, um começo', detail: 'Plante em um canteiro vazio.', reward: 15 },
   { id: 'harvest', title: 'Direto da terra', detail: 'Faça sua primeira colheita.', reward: 25 },
@@ -27,10 +34,18 @@ export function waterStatus(state, now = Date.now()) {
   const nextAt = amount === WATER_CAPACITY ? null : water.nextAt + recovered * WATER_REFILL_MS;
   return { amount, nextAt, remaining: nextAt === null ? 0 : Math.max(0, nextAt - now) };
 }
-export const PRODUCTS = Object.freeze({ egg: { name:'Ovo', plural:'Ovos', sell:16 }, milk: { name:'Leite', plural:'Leite', sell:40 }, fish: { name:'Peixe', plural:'Peixes', sell:24 }, shrimp: { name:'Camarão', plural:'Camarões', sell:38 } });
-export const ANIMALS = Object.freeze({ chicken: { name:'Galinha', cost:60, feedCost:5, duration:60_000, product:'egg', xp:5, level:1 }, cow: { name:'Vaca', cost:180, feedCost:12, duration:120_000, product:'milk', xp:10, level:2 } });
+export const PRODUCTS = Object.freeze({ egg: { name:'Ovo', plural:'Ovos', sell:16 }, milk: { name:'Leite', plural:'Leite', sell:40 }, wool: { name:'Lã', plural:'Lã', sell:32 }, fish: { name:'Peixe', plural:'Peixes', sell:24 }, shrimp: { name:'Camarão', plural:'Camarões', sell:38 } });
+export const ANIMALS = Object.freeze({ chicken: { name:'Galinha', cost:60, feed:'poultry', duration:60_000, product:'egg', xp:5, level:1 }, cow: { name:'Vaca', cost:180, feed:'livestock', duration:120_000, product:'milk', xp:10, level:2 }, sheep:{ name:'Ovelha', cost:120, feed:'livestock', duration:90_000, product:'wool', xp:8, level:2 } });
 export const POND = Object.freeze({ cost:240, level:2, fishLimit:1, cageLimit:3 });
-export const AQUACULTURE = Object.freeze({ fish: { name:'Criação de peixes', cost:60, feedCost:6, duration:60_000, product:'fish', xp:6, level:2 }, shrimp: { name:'Gaiola de camarões', cost:120, feedCost:10, duration:90_000, product:'shrimp', xp:9, level:3 } });
+export const AQUACULTURE = Object.freeze({ fish: { name:'Criação de peixes', cost:60, feed:'aquatic', duration:60_000, product:'fish', xp:6, level:2 }, shrimp: { name:'Gaiola de camarões', cost:120, feed:'aquatic', duration:90_000, product:'shrimp', xp:9, level:3 } });
+export const FEEDS=Object.freeze({poultry:{name:'Ração de aves',detail:'Galinhas'},livestock:{name:'Ração de ruminantes',detail:'Vacas e ovelhas'},aquatic:{name:'Ração aquática',detail:'Peixes e camarões'}});
+export const FEED_RECIPES=Object.freeze({
+ poultry:{name:'Aves · trigo e soja',feed:'poultry',ingredients:{wheat:2,soybean:1},yield:3,duration:20_000},
+ poultryCorn:{name:'Aves · milho e soja',feed:'poultry',ingredients:{corn:2,soybean:1},yield:4,duration:25_000},
+ livestock:{name:'Ruminantes · alfafa e trigo',feed:'livestock',ingredients:{alfalfa:2,wheat:1},yield:3,duration:20_000},
+ aquatic:{name:'Aquática · soja e trigo',feed:'aquatic',ingredients:{soybean:2,wheat:1},yield:3,duration:25_000}
+});
+const emptyFeed=()=>({poultry:0,livestock:0,aquatic:0});
 const emptyProducts=()=>Object.fromEntries(Object.keys(PRODUCTS).map(id=>[id,0]));
 const ids = Object.keys(CROPS);
 const number = (value, max = 1e9) => Number.isFinite(value) && value >= 0 && value <= max;
@@ -40,18 +55,19 @@ export const levelInfo = xp => {
   return { level, current: xp - spent, required };
 };
 export function newGame(now = Date.now()) {
-  const plots = Array.from({ length: 16 }, (_, i) => ({ unlocked: Math.floor(i / 4) < 3 && i % 4 < 3, crop: null, plantedAt: 0, readyAt: 0, watered: false }));
+  const plots = PLOT_LAYOUT.map((_,i)=>({...emptyPlot(),unlocked:i<16&&Math.floor(i/4)<3&&i%4<3}));
   Object.assign(plots[0], { crop: 'turnip', plantedAt: now - 30_000, growthStartedAt: now - 30_000, readyAt: now, watered: true, weeded: true, sprayed: false });
   Object.assign(plots[1], { crop: 'turnip', plantedAt: now - 8000, growthStartedAt: now - 8000, readyAt: now + 22_000, watered: true });
-  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', farmer: 'male', water: { amount: WATER_CAPACITY, nextAt: null }, supplies: { fertilizer: 3 }, animals:[], pond:{owned:false,stock:[]}, products:emptyProducts(), seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
+  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', farmer: 'male', water: { amount: WATER_CAPACITY, nextAt: null }, supplies: { fertilizer: 3 }, feed:emptyFeed(), mill:{job:null}, animals:[], pond:{owned:false,stock:[]}, products:emptyProducts(), seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0, soybean:3,alfalfa:3 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
 }
 export function decodeSave(raw, now = Date.now()) {
   try {
     const s = JSON.parse(raw);
     if (!s || s.version !== 1 || !number(s.coins) || !Number.isInteger(s.coins) || !number(s.xp, 1e7) || !Number.isInteger(s.xp)) return null;
-    if (!s.seeds || !s.harvest || !s.stats || !Array.isArray(s.plots) || s.plots.length !== 16 || !Array.isArray(s.quests)) return null;
+    if (!s.seeds || !s.harvest || !s.stats || !Array.isArray(s.plots) || ![16,PLOT_LAYOUT.length].includes(s.plots.length) || !Array.isArray(s.quests)) return null;
+    if(s.plots.length===16)s.plots.push(...Array.from({length:PLOT_LAYOUT.length-16},emptyPlot));
     // Novos cultivos não apagam os saves já existentes.
-    for (const id of ['turnip','tomato','watermelon']) { s.seeds[id] ??= 0; s.harvest[id] ??= 0; }
+    for (const id of ['turnip','tomato','watermelon','soybean','alfalfa']) { s.seeds[id] ??= 0; s.harvest[id] ??= 0; }
     for (const collection of [s.seeds, s.harvest]) for (const id of ids) if (!Number.isInteger(collection[id]) || !number(collection[id], 1e6)) return null;
     for (const p of s.plots) {
       if (!p || typeof p.unlocked !== 'boolean' || typeof p.watered !== 'boolean' || (p.crop !== null && !ids.includes(p.crop))) return null;
@@ -73,12 +89,15 @@ export function decodeSave(raw, now = Date.now()) {
     if(!Array.isArray(animals)||animals.length>6)return null;
     for(const a of animals)if(!a||!Object.hasOwn(ANIMALS,a.type)||!number(a.readyAt,9e15)||!number(a.fedUntil,9e15)||!Number.isInteger(a.pending)||!number(a.pending,1e6))return null;
     // Saves anteriores mantêm seus produtos e recebem os novos estoques vazios.
-    for(const k of ['fish','shrimp'])if(products[k]===undefined)products[k]=0;
+    for(const k of ['fish','shrimp','wool'])if(products[k]===undefined)products[k]=0;
     for(const k of Object.keys(PRODUCTS))if(!Number.isInteger(products[k])||!number(products[k],1e6))return null;
     if(!pond||typeof pond.owned!=='boolean'||!Array.isArray(pond.stock)||pond.stock.length>4||(!pond.owned&&pond.stock.length))return null;
     for(const a of pond.stock)if(!a||!Object.hasOwn(AQUACULTURE,a.type)||!number(a.readyAt,9e15)||!number(a.fedUntil,9e15)||!Number.isInteger(a.pending)||!number(a.pending,1e6))return null;
     if(pond.stock.filter(a=>a.type==='fish').length>POND.fishLimit||pond.stock.filter(a=>a.type==='shrimp').length>POND.cageLimit)return null;
-    return { ...s, farmer: s.farmer || 'male', water: { amount, nextAt }, farmName: s.farmName || 'Minha fazenda', supplies: s.supplies || { fertilizer: 3 }, animals,pond,products,updatedAt: now };
+    const feed=s.feed===undefined?emptyFeed():s.feed,mill=s.mill===undefined?{job:null}:s.mill;
+    if(!feed||Object.keys(FEEDS).some(k=>!Number.isInteger(feed[k])||!number(feed[k],1e6))||!mill||!Object.hasOwn(mill,'job'))return null;
+    if(mill.job!==null){const j=mill.job;if(!j||!Object.hasOwn(FEED_RECIPES,j.recipe)||!Number.isInteger(j.batches)||j.batches<1||j.batches>10||!number(j.startedAt,9e15)||!number(j.readyAt,9e15)||j.readyAt!==j.startedAt+FEED_RECIPES[j.recipe].duration*j.batches)return null;}
+    return { ...s, feed,mill,farmer: s.farmer || 'male', water: { amount, nextAt }, farmName: s.farmName || 'Minha fazenda', supplies: s.supplies || { fertilizer: 3 }, animals,pond,products,updatedAt: now };
   } catch { return null; }
 }
 export function plotStatus(plot, now = Date.now()) {
@@ -123,7 +142,22 @@ export function action(state, type, payload = {}, now = Date.now()) {
   const crop = Object.hasOwn(CROPS, payload.crop) ? CROPS[payload.crop] : null;
   const plot = Number.isInteger(payload.index) && payload.index >= 0 && payload.index < next.plots.length ? next.plots[payload.index] : null;
   let message = '', earned = 0;
-  if(type==='buyPond') {
+  if(type==='craftFeed') {
+    const recipe=Object.hasOwn(FEED_RECIPES,payload.recipe)?FEED_RECIPES[payload.recipe]:null,batches=payload.batches??1;
+    if(!recipe||!Number.isInteger(batches)||batches<1||batches>10)return fail('Escolha uma receita e de 1 a 10 lotes.');
+    if(next.mill?.job)return fail('Recolha a produção do moinho antes de iniciar outra receita.');
+    for(const [id,qty]of Object.entries(recipe.ingredients))if(!Number.isInteger(next.harvest[id])||next.harvest[id]<qty*batches)return fail(`Faltam ingredientes: ${CROPS[id].name}. Use a produção colhida, não as sementes.`);
+    next.feed={...emptyFeed(),...next.feed};if(next.feed[recipe.feed]+recipe.yield*batches>1e6)return fail('Seu depósito de ração está cheio.');
+    for(const [id,qty]of Object.entries(recipe.ingredients))next.harvest[id]-=qty*batches;
+    next.mill={job:{recipe:payload.recipe,batches,startedAt:now,readyAt:now+recipe.duration*batches}};
+    message='Moinho trabalhando! Os ingredientes foram separados para produzir a ração.';
+  } else if(type==='collectFeed') {
+    const job=next.mill?.job;if(!job)return fail('O moinho não tem ração para recolher.');
+    if(now<job.readyAt)return fail('Aguarde o moinho terminar o preparo.');
+    const recipe=FEED_RECIPES[job.recipe],amount=recipe.yield*job.batches;
+    next.feed={...emptyFeed(),...next.feed};next.feed[recipe.feed]+=amount;next.mill.job=null;
+    message=`+${amount} sacos de ${FEEDS[recipe.feed].name.toLowerCase()} no depósito.`;
+  } else if(type==='buyPond') {
     if(next.pond?.owned)return fail('O lago já faz parte da sua fazenda.');
     if(levelInfo(next.xp).level<POND.level)return fail(`Lago disponível no nível ${POND.level}.`);
     if(next.coins<POND.cost)return fail(`Você precisa de ${POND.cost} moedas para comprar o lago.`);
@@ -150,8 +184,8 @@ export function action(state, type, payload = {}, now = Date.now()) {
       message=`+${production.amount} ${PRODUCTS[def.product].plural.toLowerCase()} no armazém.`;
     } else {
       if(a.fedUntil-now>=def.duration*4)return fail('Essa criação já tem ração suficiente.');
-      if(next.coins<def.feedCost)return fail('Você precisa de mais moedas para comprar ração.');
-      next.coins-=def.feedCost;a.pending=production.amount;
+      if(!(next.feed?.[def.feed]>0))return fail('Sem ração aquática. Prepare soja e trigo no moinho.');
+      next.feed[def.feed]--;a.pending=production.amount;
       a.readyAt=now+production.remaining;a.fedUntil=Math.max(now,a.fedUntil)+def.duration*4;
       message=`${def.name} alimentada. A produção continua!`;
     }
@@ -175,8 +209,8 @@ export function action(state, type, payload = {}, now = Date.now()) {
       message=`+${production.amount} ${(production.amount===1?PRODUCTS[def.product].name:PRODUCTS[def.product].plural).toLowerCase()} no armazém.`;
     } else {
       if(a.fedUntil-now>=def.duration*4)return fail('Esse animal já tem comida suficiente.');
-      if(next.coins<def.feedCost)return fail('Você precisa de mais moedas para comprar ração.');
-      next.coins-=def.feedCost;a.pending=production.amount;
+      if(!(next.feed?.[def.feed]>0))return fail(`Sem ${FEEDS[def.feed].name.toLowerCase()}. Prepare os ingredientes no moinho.`);
+      next.feed[def.feed]--;a.pending=production.amount;
       a.readyAt=now+production.remaining;a.fedUntil=Math.max(now,a.fedUntil)+def.duration*4;
       message=`${def.name} alimentada. A produção continua!`;
     }

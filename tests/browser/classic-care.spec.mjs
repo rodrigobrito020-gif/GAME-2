@@ -22,15 +22,16 @@ test('adubo usa estoque e tempo correto, compra repõe e recarga preserva',async
   await expect(page.locator('#fertilizer-count')).toHaveText('3');await page.reload();expect((await saved(page)).plots[2].fertilized).toBe(true);
 });
 test('compra galinha, produz ovos, pausa sem comida, coleta e vende sem duplicar',async({page})=>{
+  await page.evaluate(key=>{const s=JSON.parse(localStorage.getItem(key));s.feed.poultry=1;localStorage.setItem(key,JSON.stringify(s));},key);await page.reload();
   await page.locator('[data-building="animals"]').click();await page.locator('[data-buy-animal="chicken"]').click();await page.locator('#close-modal').click();
   await expect(page.locator('[data-animal]')).toHaveCount(1);expect((await saved(page)).coins).toBe(100);
   await page.clock.fastForward(61_000);await page.locator('[data-animal="0"]').click();await page.locator('[data-collect-animal]').click();await expect(page.locator('[data-collect-animal]')).toBeDisabled();
   expect((await saved(page)).products.egg).toBe(1);await page.locator('#close-modal').click();
   await page.clock.fastForward(600_000);await page.locator('[data-animal="0"]').click();await expect(page.locator('.animal-detail')).toContainText('produção pausada');await page.locator('[data-collect-animal]').click();
   expect((await saved(page)).products.egg).toBe(4);await page.locator('[data-feed]').click();await page.locator('#close-modal').click();
-  expect((await saved(page)).coins).toBe(95);await page.reload();await expect(page.locator('[data-animal]')).toHaveCount(1);
+  expect((await saved(page)).coins).toBe(100);await page.reload();await expect(page.locator('[data-animal]')).toHaveCount(1);
   await page.locator('#open-storage').click();await page.locator('[data-sell="egg"]').click();expect((await saved(page)).products.egg).toBe(3);
-  await page.locator('[data-sell-all]').click();expect((await saved(page)).products.egg).toBe(0);expect((await saved(page)).coins).toBe(95+64+25);
+  await page.locator('[data-sell-all]').click();expect((await saved(page)).products.egg).toBe(0);expect((await saved(page)).coins).toBe(100+64+25);
 });
 test('nome personalizado persiste, missões abrem e bolsa pode fechar e abrir',async({page})=>{
   await page.locator('#edit-farm').click();await page.locator('#farm-name-input').fill('Fazenda do evento');await page.locator('#rename-form button').click();await expect(page.locator('#farm-name')).toHaveText('Fazenda do evento');

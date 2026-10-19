@@ -1,10 +1,10 @@
-# GAME-2 — Colheita Feliz 3D, versão 0.6.0
+# GAME-2 — Colheita Feliz 3D, versão 0.7.0
 
 Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
 
-![Fazenda ampliada, cartões simplificados, lago com peixes e gaiolas, galinheiro, curral e estábulo](docs/images/fazenda-v06.png)
+![Fazenda ampliada, cartões simplificados, lago com peixes e gaiolas, galinheiro, curral, aprisco e moinho](docs/images/fazenda-v07.png)
 
-Exemplo da versão 0.6.0 com lago, peixes, gaiolas, galinha e vaca já comprados. Cada fazenda começa com os recursos iniciais descritos abaixo.
+Exemplo da versão 0.7.0 com lago, peixes, gaiolas, galinha, vaca e ovelhas já compradas. Cada fazenda começa com os recursos iniciais descritos abaixo.
 
 ## Jogar
 
@@ -23,15 +23,27 @@ A alteração acontece durante a animação, após chegar ao canteiro. É possí
 
 Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 7** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
 
-## Cartões, lago e fazenda maior — versão 0.6.0
+## Arte pintada, campo ampliado e moinho — versão 0.7.0
 
-- Cartões de sementes, loja e produtos simplificados: frutas maiores, fundos claros, azul do céu, verde e amarelo milho. Quantidade, seleção e bloqueios por nível continuam visíveis, inclusive no celular.
-- Fazenda 3D ampliada, com caminhos pelas quatro margens do lago e áreas separadas para galinhas, vacas e cavalos. Galinhas compradas aparecem no galinheiro e vacas no curral. O estábulo tem cavalos decorativos; compra, montaria e produção de cavalos ainda não foram implementadas.
-- A câmera abre um enquadramento maior e acompanha o personagem quando ele chega perto das bordas. Zoom, WASD, setas, clique e tarefas nos canteiros continuam disponíveis.
-- Compre o **lago por 240 moedas no nível 2**, em **Loja → Lago** ou no botão lateral **Lago**. O espaço e o caminho já aparecem no mapa; comprar libera a criação e o pequeno deque.
-- Uma criação de **peixes custa 60 moedas**, produz um peixe por minuto e vende cada peixe por 24 moedas. Até **3 gaiolas de camarões**, liberadas no nível 3, custam 120 moedas cada, produzem um camarão a cada 90 segundos e vendem cada um por 38 moedas.
-- A primeira ração cobre 4 ciclos. Alimentar custa 6 moedas para os peixes e 10 para cada gaiola. Sem alimento, a produção pausa, inclusive offline. A janela do lago mostra o tempo e permite alimentar/coletar; colete e venda no armazém. Não consome a reserva do regador.
-- Saves anteriores preservam seus itens, nome e personagem e recebem apenas os novos estoques vazios. Preços e tempos ainda são provisórios.
+- Cultivos, produtos e ferramentas com ilustrações próprias em estilo cartoon pintado, fundos creme, títulos verdes e botões dourados, seguindo a referência do usuário. Preços, tempos, quantidades e nomes continuam como texto legível do jogo. Os recursos são embutidos no HTML.
+- Lago aproximadamente três vezes maior em área, com margem percorrível, peixes e gaiolas. Os contadores ficam acima do cenário para não cobrir a água. Casas com telhados, varanda, vigas, janelas laterais e materiais mais detalhados; iluminação e animações ambientais revistas.
+- **54 terrenos de plantio** ocupam a área até a cerca. A fazenda começa com os mesmos nove terrenos livres; os demais são expandidos com moedas. Os primeiros 16 índices e suas plantações são preservados ao migrar saves antigos.
+- Cavalos removidos. O **aprisco recebe ovelhas compradas na loja**: custam 120 moedas, são liberadas no nível 2, produzem lã a cada 90 segundos e usam a mesma ração de ruminantes das vacas.
+- **Soja e alfafa** disponíveis no nível 1. Novas fazendas recebem três sementes de cada; saves anteriores conservam seus itens e podem comprar as novas sementes na loja.
+- Clique no moinho no cenário ou em **Moinho de ração** abaixo do mapa. Receitas usam **a colheita no armazém**, sem gastar sementes ou moedas. O preparo leva tempo, continua offline e precisa ser recolhido antes de iniciar outra receita.
+
+| Receita | Ingredientes colhidos | Produção | Tempo |
+| --- | --- | --- | --- |
+| Aves | 2 trigos + 1 soja | 3 sacos | 20 s |
+| Aves com milho | 2 milhos + 1 soja | 4 sacos | 25 s |
+| Ruminantes | 2 alfafas + 1 trigo | 3 sacos | 20 s |
+| Aquática | 2 sojas + 1 trigo | 3 sacos | 25 s |
+
+[Ver os cartões ilustrados](docs/images/cartoes-v07.png) · [Ver o moinho de ração](docs/images/moinho-v07.png)
+
+Um saco alimenta uma criação por quatro ciclos. Galinhas usam ração de aves; vacas e ovelhas usam ração de ruminantes; peixes e gaiolas de camarões usam ração aquática. Sem ração, a produção pausa, inclusive offline. A primeira alimentação de cada animal/criação comprado continua incluída. A reserva de água das plantações permanece independente.
+
+O lago custa 240 moedas no nível 2; uma criação de peixes custa 60 moedas e até três gaiolas de camarões custam 120 moedas cada (nível 3). Peixes produzem a cada minuto e valem 24 moedas; camarões produzem a cada 90 segundos e valem 38 moedas. Preços, receitas e tempos são parâmetros provisórios do jogo, sem afirmar equivalência nutricional real.
 
 ## Água, personagem e expansão — versão 0.5.1
 
@@ -45,12 +57,12 @@ O aumento da capacidade de água conforme o nível foi solicitado para uma próx
 
 ## Mecânicas preservadas
 
-- Nove canteiros iniciais, expansão até 16 e oito cultivos: nabo, cenoura, trigo, morango, milho, abóbora, tomate e melancia.
+- Nove canteiros iniciais, expansão até 54 e dez cultivos: nabo, cenoura, trigo, morango, milho, abóbora, tomate, melancia, soja e alfafa.
 - Duas plantações iniciais de nabo, já regadas.
 - Sem água, a planta não cresce, inclusive fora do jogo. A primeira rega inicia o ciclo com 25% de bônus; adubo adianta mais 20% depois da rega. O tempo seco não acumula.
 - Saúde das plantas, ervas daninhas, pragas e bônus de produto ao capinar e dedetizar o cultivo.
 - Compra de sementes e adubo, armazém, venda da produção, experiência, níveis e missões com recompensas únicas.
-- Galinhas e vacas com ração, ovos/leite, coleta e venda. Sem alimento, a produção fica pausada, inclusive offline.
+- Galinhas, vacas e ovelhas com ração fabricada, ovos/leite/lã, coleta e venda. Sem alimento, a produção fica pausada, inclusive offline.
 - Nome da fazenda editável, bolsa de sementes e loja por categorias.
 - Salvamento local, backup de progresso ilegível e aviso se o navegador bloquear o armazenamento.
 

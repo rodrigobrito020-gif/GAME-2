@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CROPS, QUESTS, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, POND, AQUACULTURE, PRODUCTS, aquaticProduction, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
+import { CROPS, QUESTS, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, POND, AQUACULTURE, PRODUCTS, FEED_RECIPES, PLOT_LAYOUT, aquaticProduction, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
 const NOW=1_800_000_000_000;
 test('novo sítio começa com nove canteiros, sementes e uma colheita pronta',()=>{
-  const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,16);
+  const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,54);
 });
 test('plantar consome exatamente uma semente e não altera o estado anterior',()=>{
   const s=newGame(NOW), before=structuredClone(s), r=action(s,'plant',{index:2,crop:'carrot'},NOW);
@@ -122,7 +122,7 @@ test('adubo consome uma unidade, adianta tempo e não repete aplicação',()=>{
   s.supplies.fertilizer=0;assert.equal(action(s,'fertilize',{index:6},NOW).ok,false);
 });
 test('animais: compra, limite de nível, ração, produção offline e coleta única',()=>{
-  let s=newGame(NOW);assert.equal(action(s,'buyAnimal',{animal:'cow'},NOW).ok,false);
+  let s=newGame(NOW);s.feed.poultry=1;assert.equal(action(s,'buyAnimal',{animal:'cow'},NOW).ok,false);
   s=action(s,'buyAnimal',{animal:'chicken'},NOW).state;assert.equal(s.coins,100);assert.equal(s.animals.length,1);
   assert.equal(action(s,'collectAnimal',{animalIndex:0},NOW+59_999).ok,false);
   assert.equal(animalProduction(s.animals[0],NOW+61_000).amount,1);
@@ -130,14 +130,14 @@ test('animais: compra, limite de nível, ração, produção offline e coleta ú
   assert.equal(action(s,'collectAnimal',{animalIndex:0},NOW+61_000).ok,false);
   const p=animalProduction(s.animals[0],NOW+900_000);assert.equal(p.amount,3);assert.equal(p.hungry,true);
   s=action(s,'feedAnimal',{animalIndex:0},NOW+900_000).state;
-  assert.equal(s.coins,95);assert.equal(animalProduction(s.animals[0],NOW+900_000).amount,3);
+  assert.equal(s.coins,100);assert.equal(animalProduction(s.animals[0],NOW+900_000).amount,3);
   s=action(s,'collectAnimal',{animalIndex:0},NOW+900_000).state;assert.equal(s.products.egg,4);
   assert.equal(animalProduction(s.animals[0],NOW+959_999).amount,0);assert.equal(animalProduction(s.animals[0],NOW+960_000).amount,1);
   const loaded=decodeSave(JSON.stringify(s),NOW+960_000);assert.deepEqual(loaded.animals,s.animals);assert.deepEqual(loaded.products,s.products);
-  s=action(s,'sellAll',{},NOW+960_000).state;assert.equal(s.products.egg,0);assert.equal(s.coins,95+4*16+25);
+  s=action(s,'sellAll',{},NOW+960_000).state;assert.equal(s.products.egg,0);assert.equal(s.coins,100+4*16+25);
 });
 test('vaca produz leite; alimentação antes de acabar preserva o ciclo; cercado comporta seis',()=>{
-  let s=newGame(NOW);s.xp=100;s.coins=10000;
+  let s=newGame(NOW);s.xp=100;s.coins=10000;s.feed.livestock=1;
   s=action(s,'buyAnimal',{animal:'cow'},NOW).state;
   s=action(s,'feedAnimal',{animalIndex:0},NOW+30_000).state;
   assert.equal(s.animals[0].readyAt,NOW+ANIMALS.cow.duration);
@@ -259,7 +259,7 @@ test('criação aquática exige lago, nível, preço e respeita um cardume e tr�
  for(const stockIndex of [-1,4,0.5,'0'])assert.equal(action(s,'collectAquatic',{stockIndex},NOW).ok,false);
 });
 for(const type of ['fish','shrimp'])test(`${type}: produção offline pausa sem ração, coleta única, alimentação retoma e venda paga o valor correto`,()=>{
- let s=newGame(NOW);s.coins=2000;s.xp=80;
+ let s=newGame(NOW);s.coins=2000;s.xp=80;s.feed.aquatic=1;
  s=action(s,'buyPond',{},NOW).state;s=action(s,'buyAquatic',{aquatic:type},NOW).state;
  const def=AQUACULTURE[type],before=structuredClone(s),duration=def.duration;
  assert.equal(action(s,'collectAquatic',{stockIndex:0},NOW+duration-1).ok,false);
@@ -284,4 +284,38 @@ test('saves antigos recebem lago fechado e estoques de peixes vazios; saves inv�
  for(const pond of [null,{owned:1,stock:[]},{owned:false,stock:[fish]},{owned:true,stock:[fish,fish]},{owned:true,stock:[{...fish,pending:-1}]},{owned:true,stock:[{...fish,type:'__proto__'}]}]){
   assert.equal(decodeSave(JSON.stringify({...s,pond}),NOW),null);
  }
+});
+
+test('migração dos 16 canteiros conserva todos os itens e acrescenta a área de plantio sem presentear terrenos',()=>{
+ const old=newGame(NOW);old.plots=old.plots.slice(0,16);old.plots[3].unlocked=true;old.coins=777;old.seeds.wheat=19;delete old.seeds.soybean;delete old.harvest.soybean;delete old.seeds.alfalfa;delete old.harvest.alfalfa;delete old.feed;delete old.mill;
+ const loaded=decodeSave(JSON.stringify(old),NOW+60000);assert(loaded);assert.equal(loaded.plots.length,54);assert.deepEqual(loaded.plots.slice(0,16),old.plots);assert.equal(loaded.plots.filter(p=>p.unlocked).length,10);assert.equal(loaded.coins,777);assert.equal(loaded.seeds.wheat,19);assert.equal(loaded.seeds.soybean,0);assert.deepEqual(loaded.feed,{poultry:0,livestock:0,aquatic:0});assert.deepEqual(loaded.mill,{job:null});
+});
+test('moinho exige colheita, recusa sementes e receitas inválidas e debita ingredientes uma única vez',()=>{
+ const s=newGame(NOW),before=structuredClone(s);s.seeds.soybean=100;
+ for(const recipe of ['aquatic','__proto__','nada'])assert.equal(action(s,'craftFeed',{recipe},NOW).ok,false);
+ assert.equal(s.harvest.wheat,0);assert.equal(s.seeds.wheat,before.seeds.wheat);
+ s.harvest.wheat=5;s.harvest.soybean=5;
+ for(const batches of [0,-1,1.5,11,'1'])assert.equal(action(s,'craftFeed',{recipe:'aquatic',batches},NOW).ok,false);
+ const r=action(s,'craftFeed',{recipe:'aquatic',batches:2},NOW);assert.equal(r.ok,true);assert.equal(r.state.harvest.wheat,3);assert.equal(r.state.harvest.soybean,1);assert.equal(s.harvest.soybean,5);assert.equal(r.state.coins,160);assert.deepEqual(r.state.seeds,s.seeds);assert.deepEqual(r.state.water,s.water);
+ assert.equal(action(r.state,'craftFeed',{recipe:'aquatic'},NOW).ok,false);assert.equal(action(r.state,'collectFeed',{},NOW+49999).ok,false);
+ const done=action(r.state,'collectFeed',{},NOW+50000);assert.equal(done.ok,true);assert.equal(done.state.feed.aquatic,6);assert.equal(done.state.mill.job,null);assert.equal(action(done.state,'collectFeed',{},NOW+50000).ok,false);
+});
+test('receitas preservam o prazo offline e cada tipo de ração abastece o depósito correto',()=>{
+ for(const [recipe,def]of Object.entries(FEED_RECIPES)){
+  let s=newGame(NOW);for(const [id,n]of Object.entries(def.ingredients))s.harvest[id]=n;
+  s=action(s,'craftFeed',{recipe},NOW).state;const loaded=decodeSave(JSON.stringify(s),NOW+def.duration-1);assert.deepEqual(loaded.mill,s.mill);assert.equal(action(loaded,'collectFeed',{},NOW+def.duration-1).ok,false);
+  const done=action(decodeSave(JSON.stringify(loaded),NOW+86400000),'collectFeed',{},NOW+86400000);assert.equal(done.ok,true);assert.equal(done.state.feed[def.feed],def.yield);assert.equal(done.state.coins,s.coins);
+ }
+});
+test('alimentar usa somente a ração apropriada, sem gastar moedas ou gerar produtos instantâneos',()=>{
+ let s=newGame(NOW);s.xp=80;s.coins=1000;s=action(s,'buyAnimal',{animal:'sheep'},NOW).state;
+ const hungry=NOW+500000;assert.equal(action(s,'feedAnimal',{animalIndex:0},hungry).ok,false);s.feed.poultry=2;assert.equal(action(s,'feedAnimal',{animalIndex:0},hungry).ok,false);
+ s.feed.livestock=1;const coins=s.coins,stock=animalProduction(s.animals[0],hungry).amount;
+ const fed=action(s,'feedAnimal',{animalIndex:0},hungry);assert.equal(fed.ok,true);assert.equal(fed.state.feed.livestock,0);assert.equal(fed.state.feed.poultry,2);assert.equal(fed.state.coins,coins);assert.equal(animalProduction(fed.state.animals[0],hungry).amount,stock);
+ const collected=action(fed.state,'collectAnimal',{animalIndex:0},hungry);assert.equal(collected.ok,true);assert.equal(collected.state.products.wool,4);assert.equal(animalProduction(collected.state.animals[0],hungry+89999).amount,0);
+});
+test('save recusa moinho forjado, prazos inválidos e quantidades negativas de ração',()=>{
+ const s=newGame(NOW);
+ for(const mill of [null,{job:{recipe:'__proto__',batches:1,startedAt:NOW,readyAt:NOW+20000}},{job:{recipe:'aquatic',batches:1,startedAt:NOW,readyAt:NOW+1}}])assert.equal(decodeSave(JSON.stringify({...s,mill}),NOW),null);
+ assert.equal(decodeSave(JSON.stringify({...s,feed:{poultry:-1,livestock:0,aquatic:0}}),NOW),null);
 });

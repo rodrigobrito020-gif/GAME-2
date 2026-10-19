@@ -32,7 +32,7 @@ for(const view of ['classic','3d'])test(`lago em ${view}: compra real, peixes, g
 });
 test('lago bloqueado por nível; ração esgota, coleta não repete e volta a produzir ao alimentar',async({page})=>{
   await page.clock.install({time:new Date(NOW)});await page.goto('/?view=classic');await page.locator('#open-pond').click();await expect(page.locator('[data-buy-pond]')).toBeDisabled();await expect(page.locator('.pond-offer')).toContainText('nível 2');
-  let s=newGame(NOW);s.coins=1000;s.xp=80;s=action(s,'buyPond',{},NOW).state;s=action(s,'buyAquatic',{aquatic:'fish'},NOW).state;
+  let s=newGame(NOW);s.coins=1000;s.xp=80;s.feed.aquatic=1;s=action(s,'buyPond',{},NOW).state;s=action(s,'buyAquatic',{aquatic:'fish'},NOW).state;
   await page.evaluate(([key,s])=>localStorage.setItem(key,JSON.stringify(s)),[SAVE_KEY,s]);await page.reload();await page.clock.fastForward(10*60000);await page.locator('#open-pond').click();
   await expect(page.locator('.pond-status')).toContainText('Sem ração');await page.locator('[data-collect-aquatic="0"]').click();expect((await saved(page)).products.fish).toBe(4);
   await expect(page.locator('[data-collect-aquatic="0"]')).toBeDisabled();await page.locator('[data-feed-aquatic="0"]').click();await page.clock.fastForward(60000);await page.locator('[data-collect-aquatic="0"]').click();expect((await saved(page)).products.fish).toBe(5);
@@ -49,9 +49,10 @@ for(const view of ['classic','3d'])test(`lago e cartões cabem no celular em ${v
 test('fazenda ampliada: caminha pelas quatro margens do lago sem entrar na água',async({page})=>{
   test.setTimeout(90000);await page.goto('/');const canvas=page.locator('#farm-canvas');await expect(canvas).toHaveAttribute('data-player-x',/.+/);
   const samples=[];
-  for(const [x,z] of [[-18,-6],[-13,-10],[-8.6,-6],[-13,-1.5]]) {
-    const data=await canvas.evaluate(el=>({...el.dataset})),rect=await canvas.boundingBox(),aspect=rect.width/rect.height,halfH=Math.max(24/aspect,12.5);
-    const camera=new THREE.OrthographicCamera(-halfH*aspect,halfH*aspect,halfH,-halfH,.1,140),focus=new THREE.Vector3(Number(data.cameraFocusX),0,Number(data.cameraFocusZ));
+  // Chão livre nas quatro margens; a margem leste não usa o alvo clicável do telhado da casa.
+  for(const [x,z] of [[-22.2,-10],[-15,-15.8],[-7.8,-13],[-18,-3.5]]) {
+    const data=await canvas.evaluate(el=>({...el.dataset})),rect=await canvas.boundingBox(),halfW=Number(data.viewHalfWidth),halfH=Number(data.viewHalfHeight);
+    const camera=new THREE.OrthographicCamera(-halfW,halfW,halfH,-halfH,.1,140),focus=new THREE.Vector3(Number(data.cameraFocusX),0,Number(data.cameraFocusZ));
     camera.position.copy(focus).add(new THREE.Vector3(24,32,34));camera.lookAt(focus);camera.updateMatrixWorld();
     const point=new THREE.Vector3(x,0,z).project(camera);await page.mouse.click(rect.x+(point.x+1)*rect.width/2,rect.y+(1-point.y)*rect.height/2);
     await expect.poll(async()=>{
@@ -60,5 +61,5 @@ test('fazenda ampliada: caminha pelas quatro margens do lago sem entrar na água
     },{timeout:25000,intervals:[100,150,200]}).toBeLessThan(.3);
   }
   expect(samples.some(p=>p.x<-17)).toBe(true);
-  for(const p of samples)expect((p.x+13)**2/13.7+(p.z+6)**2/7.5).toBeGreaterThanOrEqual(.995);
+  for(const p of samples)expect((p.x+15)**2/46.93+(p.z+10)**2/27.56).toBeGreaterThanOrEqual(.995);
 });

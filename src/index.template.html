@@ -19,13 +19,15 @@
     </header>
     <main class="layout">
       <section class="farm-column" aria-label="Sua fazenda">
-        <div class="farm-stage">
+        <div class="farm-topline">
           <div class="farm-hud">
             <button id="edit-farm" class="player-card" aria-label="Personalizar fazenda e personagem" title="Escolher fazendeiro ou fazendeira e nome da fazenda"><span class="avatar" id="farmer-avatar" aria-hidden="true">👨🏻‍🌾</span><span><b id="farm-name">Minha fazenda</b><small><span id="farmer-title">Fazendeiro</span> · Nível <strong id="level">1</strong></small><span class="xp-track"><i id="xp-fill"></i></span><span id="xp-label">0 / 30 XP</span><span class="profile-edit">✎ Editar nome e personagem</span></span><span class="edit-pencil">✎</span></button>
             <div class="balance coins"><span aria-hidden="true">●</span><div><small>MOEDAS</small><b id="coins">160</b></div></div>
             <div class="balance water-balance" id="water-reserve" role="group" aria-label="Reserva de água"><span aria-hidden="true">💧</span><div><small>ÁGUA</small><b><span id="water-amount">30</span><em>/30</em></b><small id="water-refill">Reserva cheia</small></div></div>
             <div class="ready-badge" id="ready-count" role="status"></div>
           </div>
+        </div>
+        <div class="farm-stage">
           <svg id="farm" viewBox="0 0 1400 820" role="group" aria-label="Mapa isométrico da fazenda. Use Tab e Enter para escolher um canteiro."></svg>
           <div class="side-actions"><button id="open-shop"><span data-icon="shop"></span><b>Loja</b></button><button id="open-storage"><span data-icon="crate"></span><b>Armazém</b><i id="storage-count">0</i></button><button id="open-bag"><span data-icon="sprout"></span><b>Sementes</b></button><button id="open-expand" aria-label="Expandir canteiros"><span data-icon="sprout"></span><b>Expandir</b><i id="expansion-cost">100</i></button><button id="open-pond"><span data-icon="pond"></span><b>Lago</b><i id="pond-count">+</i></button></div>
           <div id="plot-tooltip" class="plot-tooltip" role="status"></div>
@@ -35,9 +37,10 @@
           <div class="farm-nameplate"><span>⌂</span><span id="plot-count">9 canteiros</span><small>Cuide bem da sua plantação!</small></div>
         </div>
 
+        <section class="mill-shortcut"><button id="open-mill"><span data-icon="mill"></span><span><b>Moinho de ração</b><small id="mill-status">Transforme sua colheita em ração</small></span></button><span id="feed-summary"></span></section>
         <section class="seed-section" id="seed-section"><div class="seed-heading"><h2>Bolsa de sementes</h2><span class="seed-note">Escolha uma semente e clique em um canteiro vazio.</span><button id="close-bag" aria-label="Fechar bolsa de sementes">×</button></div><div id="seed-tray" class="seed-tray"></div></section>
         <section class="activity-strip"><span class="activity-icon">✦</span><span id="activity-text">Bem-vindo! Sua primeira colheita já está pronta.</span><span class="local-mode">JOGO LOCAL</span></section>
-        <div class="farm-footer"><span id="save-status" class="save-status" role="status">✓ Progresso salvo neste navegador</span><span>Versão de desenvolvimento · 0.6.0</span></div>
+        <div class="farm-footer"><span id="save-status" class="save-status" role="status">✓ Progresso salvo neste navegador</span><span>Versão de desenvolvimento · 0.7.0</span></div>
       </section>
     </main>
   </div>
