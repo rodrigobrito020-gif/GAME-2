@@ -8,8 +8,17 @@ O protótipo atual, chamado provisoriamente Sítio Aurora, é uma base técnica 
 
 - Usar imagens ou arquivos de referência da versão original escolhida pelo usuário para orientar a reprodução da interface, cenário, itens e ações. Ainda não foram fornecidos recursos do Colheita Feliz.
 - Planejar interação real entre os participantes do evento, sem simular amigos como se fossem pessoas conectadas.
-- Confirmar se o evento usará uma rede Wi-Fi compartilhada ou acesso pela internet, quantos participantes simultâneos são esperados e a data do evento.
+- Conexão confirmada: pela internet, com cerca de 30 jogadores simultâneos. A data do evento ainda não foi informada.
 - O jogo final para o evento precisará salvar as fazendas no servidor e sincronizar as ações entre os jogadores; o localStorage atual não atende a esse requisito.
+
+## Requisitos de execução do evento
+
+- Serviço central acessível pela internet, com HTTPS e armazenamento persistente das fazendas.
+- Identificação e sessão de cada participante; cada pessoa joga em sua própria fazenda.
+- Regras de compra, plantio, crescimento, colheita e interações validadas pelo servidor para evitar ações duplicadas ou alteração de saldo pelo navegador.
+- Visitas e interações com os amigos precisam usar o estado real de suas fazendas, com autorização das ações permitidas.
+- Verificar concorrência com 30 participantes, reconexão e conservação do progresso após reiniciar o servidor.
+- Não confundir a prévia estática atual com uma partida online. Hospedagem, contas e sincronização ainda não foram implementadas nem publicadas.
 
 ## Funcionalidades do protótipo local atual
 
