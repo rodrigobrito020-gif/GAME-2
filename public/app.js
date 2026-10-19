@@ -31,6 +31,7 @@ function run(type,payload={}) {
   if(!result.ok) { toast(result.message,true); return false; }
   state=result.state; persist(); render();
   let message=result.message;
+  if(type==='rename')message=saveAvailable?`Alterações salvas: ${state.farmName} · ${state.farmer==='female'?'Fazendeira':'Fazendeiro'}.`:`Alterações aplicadas nesta aba: ${state.farmName}. O navegador está bloqueando o salvamento ao reabrir.`;
   if(result.rewards.length) message+=` Objetivo concluído: +${result.rewards.reduce((n,q)=>n+q.reward,0)} moedas!`;
   if(result.levelUp) message+=` Olá, nível ${levelInfo(state.xp).level}! Novos cultivos esperam por você.`;
   toast(message); return true;
@@ -165,14 +166,16 @@ function renderModal() {
   } else if(modalType==='goals') {
     $('#modal-body').innerHTML=`<p class="modal-summary">Complete os objetivos e receba as moedas automaticamente.</p><div id="quests">${QUESTS.map((q,i)=>`<div class="quest ${state.quests.includes(q.id)?'done':''}"><span class="quest-check">${state.quests.includes(q.id)?'✓':i+1}</span><div><b>${q.title}</b><p>${q.detail}</p><small>${state.quests.includes(q.id)?'Concluído':`● +${q.reward} moedas`}</small></div></div>`).join('')}</div>`;
   } else if(modalType==='rename') {
-    $('#modal-body').innerHTML='<form id="rename-form"><label for="farm-name-input">Como vai se chamar sua fazenda?</label><input id="farm-name-input" name="farmName" minlength="2" maxlength="30" required autocomplete="off"><button class="primary-button full" type="submit">Salvar nome</button></form>';
+    $('#modal-body').innerHTML='<form id="rename-form" novalidate><p class="profile-instructions">Escolha o personagem e edite o nome. Depois, confirme no botão abaixo.</p><label for="farm-name-input">Nome da fazenda · 2 a 30 caracteres</label><input id="farm-name-input" name="farmName" minlength="2" maxlength="30" required autocomplete="off" aria-describedby="profile-error"><p id="profile-error" class="profile-error" role="alert" hidden></p><button class="primary-button full" type="button" id="apply-profile">✓ Aplicar nome e personagem</button></form>';
     $('#farm-name-input').value=state.farmName||'Minha fazenda';
+    if(!saveAvailable)$('#rename-form').insertAdjacentHTML('afterbegin','<p class="profile-error" id="profile-save-warning">O navegador está bloqueando o salvamento. As mudanças ficam disponíveis nesta aba.</p>');
     $('#rename-form').insertAdjacentHTML('afterbegin',`<fieldset class="farmer-choices"><legend>Seu personagem</legend>${[['male','👨🏻‍🌾','Fazendeiro'],['female','👩🏻‍🌾','Fazendeira']].map(([id,emoji,name])=>`<label><input type="radio" name="farmer" value="${id}" ${(state.farmer||'male')===id?'checked':''}><span>${emoji}</span><b>${name}</b></label>`).join('')}</fieldset>`);
   } else {
     $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Selecione uma semente na bolsa e clique em um canteiro vazio. Compre novas sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>Cada canteiro regado gasta 1 água. Você começa com 30 e recupera 1 a cada 2 minutos, até 30, inclusive fora do jogo. O contador no topo mostra a próxima recarga. A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Clique no seu avatar no topo para escolher fazendeiro ou fazendeira. Use <b>WASD</b>, as setas ou clique no chão para andar em 3D; mover cancela tarefas pendentes. Os terrenos dourados e o botão <b>Expandir</b> liberam novos canteiros.<br>Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
   }
 }
 $('#modal-body').addEventListener('click',e=>{
+  if(e.target.closest('#apply-profile')){saveProfile();return;}
   const tab=e.target.closest('[data-shop-tab]');if(tab){shopTab=tab.dataset.shopTab;renderModal();return;}
   const buyAnimal=e.target.closest('[data-buy-animal]');if(buyAnimal&&!buyAnimal.disabled){run('buyAnimal',{animal:buyAnimal.dataset.buyAnimal});return;}
   const feed=e.target.closest('[data-feed]');if(feed&&!feed.disabled){run('feedAnimal',{animalIndex});return;}
@@ -184,7 +187,17 @@ $('#modal-body').addEventListener('click',e=>{
   if(e.target.closest('[data-expand]')&&!e.target.closest('button').disabled) {if(run('expand',{index:expansionIndex})) closeModal();return;}
   if(e.target.closest('[data-help-close]')) closeModal();
 });
-$('#modal-body').addEventListener('submit',e=>{if(e.target.id==='rename-form'){e.preventDefault();if(run('rename',{name:$('#farm-name-input').value,farmer:$('#rename-form input[name="farmer"]:checked').value}))closeModal();}});
+// The chat preview allows scripts but blocks native form submissions.
+// Apply in the click/keyboard handler so customization works in that view too.
+function saveProfile(){
+  const name=$('#farm-name-input'),farmer=$('#rename-form input[name="farmer"]:checked');
+  if(!name)return;
+  if(run('rename',{name:name.value,farmer:farmer?.value}))closeModal();
+  else {const error=$('#profile-error');error.textContent=$('#toast').textContent;error.hidden=false;name.setAttribute('aria-invalid','true');name.focus();}
+}
+$('#modal-body').addEventListener('submit',e=>{if(e.target.id==='rename-form'){e.preventDefault();saveProfile();}});
+$('#modal-body').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.closest('#rename-form')){e.preventDefault();saveProfile();}});
+$('#modal-body').addEventListener('input',e=>{if(e.target.id==='farm-name-input'){e.target.removeAttribute('aria-invalid');$('#profile-error').hidden=true;}});
 $('#open-shop').addEventListener('click',()=>{shopTab='seeds';openModal('shop');});
 $('#open-expand').addEventListener('click',()=>{expansionIndex=state.plots.findIndex(p=>!p.unlocked);if(expansionIndex>=0)openModal('expand');});
 $('#open-storage').addEventListener('click',()=>openModal('storage'));

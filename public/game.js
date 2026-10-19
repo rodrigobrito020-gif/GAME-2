@@ -137,7 +137,7 @@ export function action(state, type, payload = {}, now = Date.now()) {
   } else if (type === 'rename') {
     if (typeof payload.name !== 'string' || payload.name.trim().length < 2 || payload.name.trim().length > 30) return fail('Use um nome de 2 a 30 caracteres.');
     if (payload.farmer !== undefined && !['male','female'].includes(payload.farmer)) return fail('Escolha fazendeiro ou fazendeira.');
-    next.farmName = payload.name.trim();next.farmer=payload.farmer ?? next.farmer ?? 'male'; message = 'Fazenda e personagem atualizados!';
+    next.farmName = payload.name.trim();next.farmer=payload.farmer ?? next.farmer ?? 'male'; message = `Fazenda e personagem atualizados: ${next.farmName} · ${next.farmer==='female'?'Fazendeira':'Fazendeiro'}.`;
   } else if (type === 'buyFertilizer') {
     if (next.coins < FERTILIZER_PRICE) return fail('Você precisa de mais moedas para comprar adubo.');
     next.supplies ||= { fertilizer: 3 }; next.supplies.fertilizer++; next.coins -= FERTILIZER_PRICE;
