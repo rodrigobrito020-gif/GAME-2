@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { CROPS, PLOT_LAYOUT, ANIMALS, POND, plotStatus, progress, plotCare, animalProduction, expansionPrice } from './game.js';
+import { CROPS, PLOT_LAYOUT, ANIMALS, POND, pondCellPosition, plotStatus, progress, plotCare, animalProduction, expansionPrice } from './game.js';
 
 // All models are made for GAME-2. No external models, textures or CDN requests.
 export function createFarm3D(svg, { onStatus, onError }) {
@@ -36,7 +36,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
   const ground=mesh(new THREE.PlaneGeometry(240,240),'#ffffff',scene,0,-.03,0,{map:texture('grass')});ground.rotation.x=-Math.PI/2;ground.castShadow=false;
   // A small rural farm framed by trees rather than a city.
   function path(x,z,w,d){const shape=new THREE.Shape(),r=Math.min(.7,w/3,d/3);shape.moveTo(-w/2+r,-d/2);shape.lineTo(w/2-r,-d/2);shape.quadraticCurveTo(w/2,-d/2,w/2,-d/2+r);shape.lineTo(w/2,d/2-r);shape.quadraticCurveTo(w/2,d/2,w/2-r,d/2);shape.lineTo(-w/2+r,d/2);shape.quadraticCurveTo(-w/2,d/2,-w/2,d/2-r);shape.lineTo(-w/2,-d/2+r);shape.quadraticCurveTo(-w/2,-d/2,-w/2+r,-d/2);const p=mesh(new THREE.ShapeGeometry(shape,8),'#e3d3ad',scene,x,.018,z,{map:pathMap});p.rotation.x=-Math.PI/2;p.castShadow=false;}
-  path(0,-2.7,44,2.3);path(2.4,2,2,28);path(-4.8,-5.3,1.6,5.5);path(12.7,4,1.8,23);path(17.8,8,10,1.6);
+  path(0,-2.7,44,2.3);path(2.4,2,2,28);path(-3.8,-4.0,2.2,2.2);path(12.7,4,1.8,23);path(17.8,8,10,1.6);
   for(let i=0;i<45;i++){const x=-15+random()*29,z=-3.55+random()*1.6;ball(scene,'#c39b66',x,.065,z,.06,2,.3,1);}
   const fenceColliders=[];
   function fence(x,z,length,axis='x') {const f=group(scene,x,0,z),n=Math.ceil(length/1.8);if(axis==='z')f.rotation.y=Math.PI/2;
@@ -59,7 +59,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
   function roof(p,w,d,h,y,color){const angle=Math.atan2(h,w/2),length=Math.hypot(h,w/2);for(const side of[-1,1]){const panel=box(p,color,side*w/4,y+h/2,0,length+.12,.16,d);panel.rotation.z=-side*angle;for(let row=0;row<5;row++){const f=(row+.3)/5;bar(p,color,[side*w/2*(1-f),y+h*f+.1,-d/2],[side*w/2*(1-f),y+h*f+.1,d/2],.035);}}bar(p,'#8a5a33',[0,y+h+.08,-d/2-.05],[0,y+h+.08,d/2+.05],.085);}
   function gable(p,w,d,h,y,color){const shape=new THREE.Shape();shape.moveTo(-w/2,0);shape.lineTo(0,h);shape.lineTo(w/2,0);shape.closePath();return mesh(new THREE.ExtrudeGeometry(shape,{depth:d,bevelEnabled:false}),color,p,0,y,-d/2);}
   function windowPane(p,x,y,z,w=.65,h=.8){box(p,'#775534',x,y,z,w+.17,h+.17,.1);box(p,'#95cfd2',x,y,z+.065,w,h,.05);box(p,'#fff2c5',x,y,z+.1,.055,h,.05);box(p,'#fff2c5',x,y,z+.1,w,.055,.05);}
-  function house(){const h=group(scene,-5.2,0,-7.1);box(h,'#9c8d7c',0,.13,0,5.4,.28,4.2);box(h,'#f1e4c9',0,1.6,0,5,2.9,3.8);gable(h,5,3.8,1.5,3,'#f1e4c9');roof(h,5.7,4.5,1.7,2.95,'#b8572e');
+  function house(){const h=group(scene,-3.8,0,-8.2);h.scale.setScalar(1.45);box(h,'#9c8d7c',0,.13,0,5.4,.28,4.2);box(h,'#f1e4c9',0,1.6,0,5,2.9,3.8);gable(h,5,3.8,1.5,3,'#f1e4c9');roof(h,5.7,4.5,1.7,2.95,'#b8572e');
     for(const x of[-2.4,2.4])box(h,'#895b30',x,1.5,1.96,.13,2.9,.13);box(h,'#ba8045',0,.9,1.95,1,1.75,.13);box(h,'#754f31',0,.9,2.04,.76,1.5,.05);ball(h,'#f2c45e',.27,.85,2.09,.055);windowPane(h,-1.5,1.7,1.98);windowPane(h,1.5,1.7,1.98);
     box(h,'#e6c28b',0,.2,2.55,1.65,.2,1);box(h,'#f1d5a2',0,.08,3.1,2,.15,.55);
     for(const x of[-1.5,1.5]){box(h,'#ad6739',x,1.11,2.1,.95,.2,.34);for(let j=0;j<5;j++){ball(h,j%2?'#f9d55a':'#e97979',x-.32+j*.16,1.32,2.15,.11);}}
@@ -71,34 +71,36 @@ export function createFarm3D(svg, { onStatus, onError }) {
     box(h,'#8a5a33',0,2.85,2,5,.16,.14);
   }house();
   let millRotor;
-  function millBuilding(){const m=group(scene,9,0,-6.5);
+  function millBuilding(){const m=group(scene,8.5,0,-7.2);m.scale.setScalar(1.3);
     box(m,'#bc9b70',-1.4,.15,0,3.2,.3,3.5);box(m,'#f1e4c9',-1.4,1.2,0,3,2.2,3.2);gable(m,3,3.2,1,2.3,'#f1e4c9');roof(m,3.6,3.8,1.2,2.3,'#b8572e');
     cylinder(m,'#c9bda5',1,2.5,-.4,1.15,1.65,5,16);mesh(new THREE.ConeGeometry(1.55,1.45,16),'#64816c',m,1,5.7,-.4);
     for(const y of[.5,1.25,2,2.75,3.5,4.25]){const ring=mesh(new THREE.TorusGeometry(1.65-y*.1,.035,3,32),'#a8977a',m,1,y,-.4);ring.rotation.x=Math.PI/2;}
     box(m,'#895b30',-1.4,.95,1.64,.8,1.8,.1);windowPane(m,-.3,1.45,1.65,.55,.65);
     millRotor=group(m,1,4.2,1.15);cylinder(millRotor,'#754f31',0,0,0,.16,.16,.35,12).rotation.x=Math.PI/2;
     for(let i=0;i<4;i++){const arm=group(millRotor);arm.rotation.z=i*Math.PI/2;box(arm,'#895b30',0,1.15,0,.11,2.4,.11);box(arm,'#eee3bd',.28,1.25,.03,.52,1.65,.07);for(let j=0;j<6;j++)box(arm,'#ba8045',.28,.48+j*.29,.085,.58,.035,.03);}
-    const silo=group(scene,12.5,0,-7.5);cylinder(silo,'#b3beb0',0,1.9,0,1,1,3.8,16);mesh(new THREE.ConeGeometry(1.15,.9,16),'#778f89',silo,0,4.2,0);
+    const silo=group(scene,13,0,-10.7);silo.scale.setScalar(1.15);cylinder(silo,'#b3beb0',0,1.9,0,1,1,3.8,16);mesh(new THREE.ConeGeometry(1.15,.9,16),'#778f89',silo,0,4.2,0);
     for(let y=.5;y<4;y+=.8){const ring=mesh(new THREE.TorusGeometry(1.01,.035,4,16),'#81948d',silo,0,y,0);ring.rotation.x=Math.PI/2;}
     for(let i=0;i<3;i++){const sack=ball(scene,'#c9b181',6+i*.65,.4,-3.8,.35,1,1.2,1);bar(scene,'#8a5a33',[6+i*.65-.1,.7,-3.8],[6+i*.65+.1,.7,-3.8],.025);}
   }millBuilding();
   // Pond, stones, reeds and lily pads.
-  const lake=group(scene,-15,0,-10);lake.scale.set(2.25,1,2.2);const shore=cylinder(lake,'#d4c685',0,.015,0,2.8,2.9,.08,24);shore.scale.z=.78;
-  const water=cylinder(lake,'#3c9fa5',0,.065,0,2.5,2.5,.05,48);water.scale.z=.74;water.material=mat('#3c9fa5',{roughness:.24,metalness:.18});const waterTime={value:0};water.material.onBeforeCompile=shader=>{shader.uniforms.farmTime=waterTime;shader.vertexShader='uniform float farmTime; varying vec3 farmLocal;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n farmLocal=position; transformed.y += sin(position.x*2.8+farmTime)*.016+cos(position.z*3.2+farmTime*.8)*.014;');shader.fragmentShader='uniform float farmTime; varying vec3 farmLocal;\n'+shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n float shallow=smoothstep(1.0,2.5,length(farmLocal.xz)); float wave=sin(farmLocal.x*8.0+farmTime*.8)*cos(farmLocal.z*9.0+farmTime*.6)*.012; diffuseColor.rgb=mix(diffuseColor.rgb*vec3(.55,.80,1.0),diffuseColor.rgb*vec3(1.05,1.22,1.05),shallow)+wave;');};
-  const rings=[];for(let i=0;i<4;i++){const r=mesh(new THREE.TorusGeometry(.24+i*.08,.005,3,48),'#cce9dd',lake,-1.1+i*.7,.11,Math.sin(i*2)*.75,{transparent:true,opacity:.24,depthWrite:false});r.rotation.x=Math.PI/2;r.scale.y=.65;rings.push(r);}
-  for(let i=0;i<11;i++){const a=i/11*Math.PI*2;ball(lake,'#b9b6a0',Math.cos(a)*2.8,.1,Math.sin(a)*2.15,.12+random()*.11,1.3,.7,1);}
-  for(const [x,z]of[[-1,.7],[1,-.8]]){const pad=cylinder(lake,'#6eac53',x,.11,z,.35,.35,.02,10);ball(lake,'#f4b4ba',x,.16,z,.12,1,.5,1);pad.castShadow=false;}
-  for(let i=0;i<7;i++)bar(lake,'#699647',[-1.4+i*.13,0,-1.7],[-1.5+i*.13,.5+random()*.25,-1.65],.025);
+  const lake=group(scene,POND.x,0,POND.z);box(lake,'#d4c685',0,-.01,0,POND.size,.08,POND.size);
+  const waterGeometry=new THREE.PlaneGeometry(POND.size-.6,POND.size-.6,16,16);waterGeometry.rotateX(-Math.PI/2);
+  const water=mesh(waterGeometry,'#3c9fa5',lake,0,.10,0,{roughness:.24,metalness:.18});water.castShadow=false;
+  const waterTime={value:0};water.material.onBeforeCompile=shader=>{shader.uniforms.farmTime=waterTime;shader.vertexShader='uniform float farmTime; varying vec3 farmLocal;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n farmLocal=position; transformed.y += sin(position.x*2.8+farmTime)*.016+cos(position.z*3.2+farmTime*.8)*.014;');shader.fragmentShader='uniform float farmTime; varying vec3 farmLocal;\n'+shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n float shallow=smoothstep(4.8,5.7,max(abs(farmLocal.x),abs(farmLocal.z))); float wave=sin(farmLocal.x*8.0+farmTime*.8)*cos(farmLocal.z*9.0+farmTime*.6)*.012; diffuseColor.rgb=mix(diffuseColor.rgb*vec3(.55,.80,1.0),diffuseColor.rgb*vec3(1.05,1.22,1.05),shallow)+wave;');};
+  const rings=[];for(let i=0;i<4;i++){const r=mesh(new THREE.TorusGeometry(.4+i*.1,.01,3,32),'#cce9dd',lake,-3+i*2,.11,Math.sin(i*2)*3,{transparent:true,opacity:.24,depthWrite:false});r.rotation.x=Math.PI/2;r.scale.y=.65;rings.push(r);}
+  for(let i=0;i<7;i++)for(const side of[-1,1]){ball(lake,'#b9b6a0',-5.4+i*1.8,.11,side*5.9,.14,1.3,.6,1);ball(lake,'#b9b6a0',side*5.9,.11,-5.4+i*1.8,.14,1,.6,1.3);}
+  for(const [x,z]of[[-5.2,-4.9],[5.15,-4.8]]){const pad=cylinder(lake,'#6eac53',x,.11,z,.3,.3,.02,10);ball(lake,'#f4b4ba',x,.16,z,.09,1,.5,1);pad.castShadow=false;}
+  for(let i=0;i<7;i++)bar(lake,'#699647',[-4.8+i*.13,0,-5.5],[-4.9+i*.13,.5+random()*.25,-5.5],.025);
   // Right-hand animal paddock with a coop.
   fence(8.4,1,9);fence(12.9,4.3,6.6,'z');fence(8.4,7.6,9);path(8.5,4.3,7.9,5.7);
-  const coop=group(scene,10.8,0,1.9);box(coop,'#e9c789',0,.9,0,1.7,1.4,1.35);roof(coop,2,1.7,.8,1.55,'#b56837');box(coop,'#62412b',0,.65,.71,.65,.9,.05);const ramp=box(coop,'#b88445',0,.21,1.15,.65,.1,1);ramp.rotation.x=-.25;
+  const coop=group(scene,10.8,0,2.15);coop.scale.setScalar(1.2);box(coop,'#e9c789',0,.9,0,1.7,1.4,1.35);roof(coop,2,1.7,.8,1.55,'#b56837');box(coop,'#62412b',0,.65,.71,.65,.9,.05);const ramp=box(coop,'#b88445',0,.21,1.15,.65,.1,1);ramp.rotation.x=-.25;
   const trough=group(scene,6.4,0,2);box(trough,'#a87742',0,.25,0,1.6,.45,.55);box(trough,'#eac96c',0,.48,0,1.4,.04,.38);
   // Separate cattle and sheep paddocks, with gates wide enough to walk through.
   function paddock(z0,z1,gate=(z0+z1)/2){const x0=14,x1=22;fence(18,z0,8);fence(18,z1,8);fence(x1,(z0+z1)/2,z1-z0,'z');fence(x0,(z0+gate-1.1)/2,gate-1.1-z0,'z');fence(x0,(gate+1.1+z1)/2,z1-gate-1.1,'z');}
   paddock(-9,0,-2.7);paddock(3,13);
   function shelter(x,z,color){const s=group(scene,x,0,z);for(const px of[-2,2])for(const pz of[-1.3,1.3])box(s,'#8f5c31',px,1.25,pz,.17,2.5,.17);box(s,color,0,1.1,-1.3,4,2.1,.14);roof(s,4.6,3.4,1.1,2.4,'#b44c32');for(const px of[-1.6,0,1.6])box(s,'#efc75b',px,.27,-.7,.8,.5,.7);}
   shelter(18,-7,'#b75b3e');shelter(18,4.5,'#b98545');
-  for(const [x,z]of[[-1,-8],[13,9],[-22,5]]){const crate=group(scene,x,0,z);box(crate,'#ba864a',0,.35,0,.75,.7,.7);for(const y of[.1,.36,.63])box(crate,'#e2b373',0,y,.36,.8,.06,.05);}
+  for(const [x,z]of[[.9,-12],[13,9],[-22,5]]){const crate=group(scene,x,0,z);box(crate,'#ba864a',0,.35,0,.75,.7,.7);for(const y of[.1,.36,.63])box(crate,'#e2b373',0,y,.36,.8,.06,.05);}
   // Instanced grass and flowers keep draw calls low.
   const tuftGeo=new THREE.ConeGeometry(.035,.28,3),tuftMat=mat('#a3cd53'),grass=new THREE.InstancedMesh(tuftGeo,tuftMat,1800);geometries.add(tuftGeo);const dummy=new THREE.Object3D();
   let count=0;for(let i=0;i<4000&&count<1800;i++){const x=-22+random()*44,z=-17+random()*33;if(x>-21.2&&x<2&&z>-1.7&&z<14||Math.abs(z+2.7)<1.4||x>3&&x<14&&z>-9&&z<9||x>-22&&x<-2&&z>-15.5&&z<-3)continue;dummy.position.set(x,.13,z);dummy.rotation.set(0,random()*6,.12);dummy.updateMatrix();grass.setMatrixAt(count++,dummy.matrix);}grass.count=count;scene.add(grass);
@@ -120,17 +122,24 @@ export function createFarm3D(svg, { onStatus, onError }) {
   const soilMap=texture('soil');
   function plotPosition(i){const p=PLOT_LAYOUT[i];return new THREE.Vector3(p.x,0,p.z);}
   const crops=group(scene),signs=group(scene),animals=group(scene);
-  const pondVisual=group(scene,-15,0,-10),swimmingFish=[];let pondSignature='';
+  const pondVisual=group(scene,POND.x,0,POND.z),swimmingFish=[];let pondSignature='';
   function farmLabel(parent,text,x,y,z,width=3){const c=document.createElement('canvas');c.width=384;c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#f2fbff';ctx.fillRect(0,0,384,96);ctx.strokeStyle='#409ac2';ctx.lineWidth=7;ctx.strokeRect(3,3,378,90);ctx.font='bold 28px Arial';ctx.textAlign='center';ctx.fillStyle='#255474';ctx.fillText(text,192,58);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;textures.push(tex);const material=new THREE.SpriteMaterial({map:tex});const sprite=new THREE.Sprite(material);sprite.position.set(x,y,z);sprite.scale.set(width,width/4,1);parent.add(sprite);return sprite;}
   farmLabel(scene,'GALINHEIRO',6.7,1.1,1.1,3.1);farmLabel(scene,'CURRAL',14.1,1.2,-4.5,2.5);farmLabel(scene,'APRISCO · OVELHAS',14.1,1.2,8,3.5);farmLabel(scene,'MOINHO DE RAÇÃO',7,1.1,-3.8,3.6);
-  const lakeSign=farmLabel(scene,`LAGO À VENDA · ${POND.cost}`,-15,1,-4.8,4.1);
-  const ownedLakeSign=farmLabel(scene,'SEU LAGO · PEIXES E CAMARÕES',-15,1,-4.8,4.5);ownedLakeSign.visible=false;
-  function updatePond(state){const pond=state.pond||{owned:false,stock:[]},key=JSON.stringify([pond.owned,pond.stock.map(a=>a.type)]);if(key===pondSignature)return;pondSignature=key;clear(pondVisual);swimmingFish.length=0;lakeSign.visible=!pond.owned;ownedLakeSign.visible=pond.owned;canvas.dataset.pondOwned=String(pond.owned);canvas.dataset.shrimpCages=String(pond.stock.filter(a=>a.type==='shrimp').length);
-    if(!pond.owned)return;
-    for(let j=0;j<5;j++)box(pondVisual,'#c48c4b',.65,.2,3.7+j*.22,1.7,.09,.18);
-    for(const x of[0,1.3])bar(pondVisual,'#7c5733',[x,0,4.7],[x,.65,4.7],.06);
-    if(pond.stock.some(a=>a.type==='fish'))for(let i=0;i<5;i++){const f=group(pondVisual);ball(f,i%2?'#ffbf41':'#63c8ef',0,0,0,.21,1.5,.4,.6);const tail=mesh(new THREE.ConeGeometry(.14,.22,3),'#e78438',f,-.33,0,0);tail.rotation.z=Math.PI/2;f.userData.phase=i*Math.PI*.4;swimmingFish.push(f);}
-    pond.stock.filter(a=>a.type==='shrimp').forEach((a,i)=>{const g=group(pondVisual,-1.8+i*1.6,.17,2.2);box(g,'#679eb0',0,-.1,0,.82,.24,.7);for(const x of[-.45,.45])for(const z of[-.38,.38])ball(g,'#ffc646',x,.12,z,.1);for(const z of[-.4,.4])bar(g,'#e2eff0',[-.45,.09,z],[.45,.09,z],.025);for(let j=0;j<5;j++){const p=-.4+j*.2;bar(g,'#c9e2e4',[p,.09,-.4],[p,.09,.4],.015);bar(g,'#c9e2e4',[-.45,.09,p],[.45,.09,p],.015);}});
+  const lakeSign=farmLabel(scene,`LAGO À VENDA · ${POND.cost}`,POND.x,1,-3.6,4.1);
+  const ownedLakeSign=farmLabel(scene,'SEU LAGO · PEIXES E CAMARÕES',POND.x,1,-3.6,4.5);ownedLakeSign.visible=false;
+  function updatePond(state){const pond=state.pond||{owned:false,stock:[]},key=JSON.stringify([pond.owned,pond.stock.map(a=>[a.slot,a.type])]);if(key===pondSignature)return;pondSignature=key;clear(pondVisual);swimmingFish.length=0;lakeSign.visible=!pond.owned;ownedLakeSign.visible=pond.owned;canvas.dataset.pondOwned=String(pond.owned);canvas.dataset.shrimpCages=String(pond.stock.filter(a=>a.type==='shrimp').length);canvas.dataset.pondCells=String(POND.slots);
+    if(!pond.owned)return;const frames=group(pondVisual),half=POND.cellSize/2;
+    for(let slot=0;slot<POND.slots;slot++){const pos=pondCellPosition(slot),x=pos.x-POND.x,z=pos.z-POND.z,a=pond.stock.find(a=>a.slot===slot),color=a?'#b78343':'#75aaa6';
+      for(const side of[-1,1]){box(frames,color,x+side*half,.16,z,.07,.11,POND.cellSize);box(frames,color,x,.16,z+side*half,POND.cellSize,.11,.07);}
+      for(const dx of[-half,half])for(const dz of[-half,half])ball(frames,a?'#f5cf62':'#b0d8cd',x+dx,.19,z+dz,.09);
+      if(!a)continue;
+      if(a.type==='shrimp')for(let j=0;j<5;j++){const k=-half+j*POND.cellSize/4;bar(frames,'#9cb9b3',[x+k,.095,z-half],[x+k,.095,z+half],.012);bar(frames,'#9cb9b3',[x-half,.095,z+k],[x+half,.095,z+k],.012);}
+      const f=group(pondVisual,x,.14,z);f.userData.phase=slot*1.7;f.userData.homeX=x;f.userData.homeZ=z;
+      if(a.type==='fish'){ball(f,'#ffc45a',0,0,0,.2,1.5,.4,.6);mesh(new THREE.ConeGeometry(.13,.2,3),'#e78438',f,-.3,0,0).rotation.z=Math.PI/2;}
+      else{for(let j=0;j<4;j++)ball(f,'#ee9677',-.16+j*.09,0,Math.sin(j*.6)*.05,.075,1,.5,1);bar(f,'#f6c6a1',[.14,0,.05],[.35,.03,.12],.01);}
+      batchLocalGeometry(f);f.traverse(o=>{if(o.isMesh)o.castShadow=false;});swimmingFish.push(f);
+    }
+    batchLocalGeometry(frames);renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;
   }
   const bedGeo=new THREE.BoxGeometry(2.24,.16,2.24),ridgeGeo=new THREE.BoxGeometry(.07,.035,2);
   geometries.add(bedGeo);geometries.add(ridgeGeo);
@@ -197,7 +206,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
     }
   }
   let currentState,signature='',animalSignature='';
-  const svgNS='http://www.w3.org/2000/svg',projectionPoint=new THREE.Vector3();let hitPlots=[],hitAnimals=[],hitAnimalKey='',hitBuildings=null,hitPond=null;
+  const svgNS='http://www.w3.org/2000/svg',projectionPoint=new THREE.Vector3();let hitPlots=[],hitAnimals=[],hitAnimalKey='',hitBuildings=null,hitPond=null,hitPondCells=[];
   function attribute(node,key,value){value=String(value);if(node.getAttribute(key)!==value)node.setAttribute(key,value);}
   function rectAt(node,x,y,w,h){attribute(node,'x',x-w/2);attribute(node,'y',y-h/2);attribute(node,'width',w);attribute(node,'height',h);}
   function projectedPoint(x,y,z){projectionPoint.set(x,y,z).project(camera);return[(projectionPoint.x+1)*700,(1-projectionPoint.y)*410];}
@@ -213,13 +222,15 @@ export function createFarm3D(svg, { onStatus, onError }) {
     if(animalKey!==hitAnimalKey){hitAnimalKey=animalKey;svg.querySelector('#animals').innerHTML=currentState.animals.map((a,i)=>`<g class="farm-animal" role="button" tabindex="0" data-animal="${i}" data-enclosure="${a.type==='cow'?'cattle':a.type==='sheep'?'sheep':'chickens'}" aria-label="${a.type==='cow'?'Vaca no curral':a.type==='sheep'?'Ovelha no aprisco':'Galinha no galinheiro'}"><title>${ANIMALS[a.type].name}</title><rect/></g>`).join('');hitAnimals=[...svg.querySelectorAll('[data-animal] rect')];}
     hitAnimals.forEach((node,i)=>{const p=animalPosition(i),[x,y]=projectedPoint(p.x,.5,p.z);rectAt(node,x,y,50,60);});
     if(!hitBuildings){svg.querySelector('#buildings').innerHTML='<g role="button" tabindex="0" data-building="house" aria-label="Casa: nome da fazenda"><rect/></g><g role="button" tabindex="0" data-building="mill" aria-label="Moinho de ração"><rect/></g>';hitBuildings=[...svg.querySelectorAll('#buildings rect')];}
-    const [hx,hy]=projectedPoint(-5.2,2,-6),[mx,my]=projectedPoint(9,2,-6);rectAt(hitBuildings[0],hx,hy-5,90,70);rectAt(hitBuildings[1],mx,my,80,80);
+    const [hx,hy]=projectedPoint(-3.8,1.3,-5.2),[mx,my]=projectedPoint(8.5,3,-7);rectAt(hitBuildings[0],hx,hy,65,65);rectAt(hitBuildings[1],mx,my,80,80);
     if(!hitPond){svg.querySelector('#pond').innerHTML='<g role="button" tabindex="0" data-building="pond"><rect/></g>';hitPond=svg.querySelector('#pond rect');}
-    const [lx,ly]=projectedPoint(-15,1,-4.8);rectAt(hitPond,lx,ly,4.5/(camera.right-camera.left)*1400,1.125/(camera.top-camera.bottom)*820);if(!positionsOnly)attribute(hitPond.parentNode,'aria-label',currentState.pond?.owned?'Cuidar do lago':'Comprar lago por '+POND.cost+' moedas');
+    if(!hitPondCells.length){for(let slot=0;slot<POND.slots;slot++){const g=document.createElementNS(svgNS,'g');g.setAttribute('role','button');g.setAttribute('tabindex','0');g.setAttribute('data-pond-cell',slot);const polygon=document.createElementNS(svgNS,'polygon');g.append(polygon);svg.querySelector('#pond').append(g);hitPondCells.push({g,polygon});}}
+    hitPondCells.forEach(({g,polygon},slot)=>{g.style.display=currentState.pond?.owned?'':'none';const pos=pondCellPosition(slot),h=POND.cellSize/2;attribute(polygon,'points',[[-h,-h],[h,-h],[h,h],[-h,h]].map(([x,z])=>projectedPoint(pos.x+x,.25,pos.z+z).join(',')).join(' '));if(!positionsOnly){const a=currentState.pond?.stock.find(a=>a.slot===slot);attribute(g,'aria-label',`Viveiro ${slot+1}, ${a?a.type==='fish'?'peixes':'camarões':'vazio, escolher criação'}`);}});
+    const [lx,ly]=projectedPoint(POND.x,1,-3.6);rectAt(hitPond,lx,ly,4.5/(camera.right-camera.left)*1400,1.125/(camera.top-camera.bottom)*820);if(!positionsOnly)attribute(hitPond.parentNode,'aria-label',currentState.pond?.owned?'Cuidar do lago':'Comprar lago por '+POND.cost+' moedas');
   }
   function animalPosition(i){const type=currentState.animals[i].type,index=currentState.animals.slice(0,i).filter(a=>a.type===type).length;return type==='cow'?new THREE.Vector3(16+index%3*1.65,0,-3.7+Math.floor(index/3)*1.9):type==='sheep'?new THREE.Vector3(16+index%3*1.65,0,8.5+Math.floor(index/3)*1.8):new THREE.Vector3(5.8+index%3*1.7,0,3.4+Math.floor(index/3)*1.8);}
   function update(state){currentState=state;updateAppearance(state.farmer||'male');updatePond(state);const now=Date.now(),key=JSON.stringify([state.plots.map(p=>[p.unlocked,p.crop,p.watered,plotStatus(p,now),Math.floor(progress(p,now)*4),plotCare(p,now)]),state.animals.map(a=>[a.type,animalProduction(a,now).hungry]),state.pond?.owned]);
-    if(key===signature)return;signature=key;renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;clear(crops);clear(signs);
+    if(key===signature){hitMarkup();return;}signature=key;renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;clear(crops);clear(signs);
     state.plots.forEach((p,i)=>{const pos=plotPosition(i),status=plotStatus(p,now);beds.setColorAt(i,new THREE.Color(!p.unlocked?'#c0b2a0':p.watered?'#92928d':'#ffffff'));beds.instanceColor.needsUpdate=true;
       if(!p.unlocked){if(i===state.plots.findIndex(p=>!p.unlocked))marker(pos,'locked');return;}if(!p.crop)return;const maturity=status==='ready'?1:Math.max(.1,progress(p,now));for(const [x,z]of[[-.58,-.58],[.55,-.55],[-.55,.55],[.55,.55]]){const g=group(crops,pos.x+x,.17,pos.z+z);plant(g,p.crop,maturity);}
       marker(pos,status);const care=plotCare(p,now);if(care.weeds)for(let j=0;j<3;j++){const g=group(crops,pos.x-.8+j*.75,.18,pos.z);leaf(g,0,.1,0,j,.9);}
@@ -271,12 +282,12 @@ export function createFarm3D(svg, { onStatus, onError }) {
   const heldKeys=new Set();let manualRoute=[];
   function blocked(x,z){
     if(x < -22.95 || x > 22.95 || z < -17.05 || z > 16.1)return true;
-    if(x>-8.05&&x<-2.35&&z>-9.35&&z<-4.35)return true;
-    if(x>6.35&&x<11.65&&z>-8.8&&z<-4.3)return true;
-    if((x+15)**2/46.93+(z+10)**2/27.56<1)return true;
-    if((x-12.5)**2+(z+7.5)**2<1.5)return true;
+    if(x>-7.85&&x<.25&&z>-11.4&&z<-3.45)return true;
+    if(x>4.3&&x<12.15&&z>-10.0&&z<-4.5)return true;
+    if(Math.abs(x-POND.x)<POND.size/2+.12&&Math.abs(z-POND.z)<POND.size/2+.12)return true;
+    if((x-13)**2+(z+10.7)**2<1.9)return true;
     if(fenceColliders.some(f=>Math.abs(x-f.x)<f.halfX&&Math.abs(z-f.z)<f.halfZ))return true;
-    if(Math.abs(x-10.8)<1.05&&Math.abs(z-1.9)<.9)return true;
+    if(Math.abs(x-10.8)<1.05&&Math.abs(z-2.15)<1.1)return true;
     if(Math.abs(x-18)<2.3&&(Math.abs(z+7)<1.55||Math.abs(z-4.5)<1.55))return true;
     for(let i=0;i<(currentState?.plots.length||0);i++){if(!currentState.plots[i].unlocked)continue;const p=plotPosition(i);if(Math.abs(x-p.x)<1.13&&Math.abs(z-p.z)<1.13)return true;}
     for(const {leaves}of trees){const t=leaves.parent;if((x-t.position.x)**2+(z-t.position.z)**2<.12*t.scale.x*t.scale.x)return true;}
@@ -343,7 +354,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
   }
   function tick(now){if(disposed)return;raf=requestAnimationFrame(tick);const dt=Math.min(.25,Math.max(0,(now-last)/1000));last=now;flushPan();
     const reduced=motionPreference.matches,t=now/1000;
-    if(!reduced){trees.forEach(({leaves,phase})=>leaves.rotation.z=Math.sin(t*.75+phase)*.018);rings.forEach((r,i)=>{r.scale.set(1+Math.sin(t*1.2+i)*.12,.65*(1+Math.sin(t*1.2+i)*.12),1);});animals.children.forEach((a,i)=>{a.rotation.y=Math.sin(t*.35+i)*.18;a.position.x=a.userData.homeX+Math.sin(t*.3+i)*.12;a.userData.head.rotation.x=Math.sin(t*.6+i)*.055;a.userData.legs.forEach((l,j)=>l.rotation.x=Math.sin(t*.6+i+j*Math.PI)*.035);});millRotor.rotation.z+=dt*(currentState?.mill?.job?.readyAt>Date.now()?1.3:.15);waterTime.value=t;swimmingFish.forEach(f=>{const a=t*.45+f.userData.phase;f.position.set(Math.cos(a)*3.5,.14,Math.sin(a)*2-.6);f.rotation.y=-a-Math.PI/2;});}
+    if(!reduced){trees.forEach(({leaves,phase})=>leaves.rotation.z=Math.sin(t*.75+phase)*.018);rings.forEach((r,i)=>{r.scale.set(1+Math.sin(t*1.2+i)*.12,.65*(1+Math.sin(t*1.2+i)*.12),1);});animals.children.forEach((a,i)=>{a.rotation.y=Math.sin(t*.35+i)*.18;a.position.x=a.userData.homeX+Math.sin(t*.3+i)*.12;a.userData.head.rotation.x=Math.sin(t*.6+i)*.055;a.userData.legs.forEach((l,j)=>l.rotation.x=Math.sin(t*.6+i+j*Math.PI)*.035);});millRotor.rotation.z+=dt*(currentState?.mill?.job?.readyAt>Date.now()?1.3:.15);waterTime.value=t;swimmingFish.forEach(f=>{const a=t*.45+f.userData.phase;f.position.set(f.userData.homeX+Math.cos(a)*.55,.14,f.userData.homeZ+Math.sin(a)*.4);f.rotation.y=-a-Math.PI/2;});}
     if(heldKeys.size||manualRoute.length)moveManually(dt);
     else if(phase==='moving')moveManually(dt);
     if(!job&&queue.length)nextJob();

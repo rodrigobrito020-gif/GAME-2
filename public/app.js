@@ -1,5 +1,5 @@
 import { createFarm3D } from './farm3d.js';
-import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, POND, AQUACULTURE, FEEDS, FEED_RECIPES, aquaticProduction, animalProduction, QUESTS, FERTILIZER_PRICE, WATER_CAPACITY, waterStatus, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, growthRemaining, expansionPrice, action } from './game.js';
+import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, POND, AQUACULTURE, FEEDS, FEED_RECIPES, aquaticProduction, animalProduction, QUESTS, TOOL_SHOP, ownsTool, FERTILIZER_PRICE, WATER_CAPACITY, waterStatus, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, growthRemaining, expansionPrice, action } from './game.js';
 import { icon, cropIcon, animalIcon, animalMarkup, pondMarkup, landscape, plotMarkup } from './art.js';
 
 const $ = selector => document.querySelector(selector);
@@ -9,6 +9,7 @@ let state, saveAvailable=true, recovered=false;
 try { const raw=localStorage.getItem(SAVE_KEY); state=raw?decodeSave(raw):newGame(); if(!state) { localStorage.setItem(SAVE_KEY+'-backup',raw); state=newGame(); recovered=true; } }
 catch { state=newGame(); saveAvailable=false; }
 let tool='smart', selectedCrop='turnip', modalType=null, expansionIndex=null, toastTimer, zoom=1, lastSignature='', returnFocus=null, shopTab='seeds', animalIndex=null;
+let selectedPondSlot=null;
 let pendingPlantIndex=null, seedReturnFocus=null, pointerGesture=null, suppressMapClick=false;
 const farm=$('#farm');
 farm.innerHTML='<g id="plots"></g><g id="animals"></g><g id="buildings"></g><g id="pond"></g>';
@@ -38,6 +39,7 @@ function run(type,payload={}) {
   toast(message); return true;
 }
 function selectTool(next) {
+  if(!ownsTool(state,next)){shopTab='tools';openModal('shop');toast(`Compre ${TOOL_SHOP[next].name.toLowerCase()} para liberar essa ferramenta.`,true);return;}
   tool=next; farm3d?.selectTool(next);
   document.querySelectorAll('[data-tool]').forEach(el=>{ el.classList.toggle('active',el.dataset.tool===tool); el.setAttribute('aria-pressed',String(el.dataset.tool===tool)); });
   $('#map-hint').textContent={smart:'Arraste para mover a câmera · Clique num canteiro para cuidar',plant:'Clique num canteiro vazio e escolha o que plantar',water:'Regue as plantas secas para iniciar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
@@ -76,7 +78,7 @@ function renderPlots(force=false) {
   const pondReady=state.pond?.stock.reduce((n,a)=>n+aquaticProduction(a,now).amount,0)||0;
   $('#pond-count').textContent=pondReady||'+';
   $('#open-pond').title=state.pond?.owned?`${pondReady} produtos prontos no lago`:`Lago à venda: ${POND.cost} moedas · Nível ${POND.level}`;
-  if(modalType==='pond')refreshPondStatus(now);
+  if(modalType==='pond'||modalType==='shop'&&shopTab==='pond')refreshPondStatus(now);
   renderMillStatus(now);
 }
 function render() {
@@ -88,7 +90,9 @@ function render() {
   $('#farmer-avatar').textContent=state.farmer==='female'?'👩🏻‍🌾':'👨🏻‍🌾';
   $('#farmer-title').textContent=state.farmer==='female'?'Fazendeira':'Fazendeiro';
   const canExpand=state.plots.some(p=>!p.unlocked);$('#open-expand').disabled=!canExpand;$('#expansion-cost').textContent=canExpand?expansionPrice(state):'✓';$('#open-expand').title=canExpand?`Novo canteiro: ${expansionPrice(state)} moedas`:'Todos os canteiros liberados';
-  $('#fertilizer-count').textContent=state.supplies?.fertilizer ?? 3;
+  $('#fertilizer-count').textContent=state.supplies?.fertilizer ?? 0;
+  document.querySelectorAll('[data-tool]').forEach(el=>{const locked=!ownsTool(state,el.dataset.tool);el.classList.toggle('locked',locked);el.dataset.locked=String(locked);el.setAttribute('aria-label',locked?`${el.querySelector('b').textContent}: comprar na loja de ferramentas`:el.querySelector('b').textContent);el.title=locked?'Comprar na loja · Ferramentas':el.querySelector('b').textContent;let badge=el.querySelector('.tool-lock');if(locked&&!badge){badge=document.createElement('span');badge.className='tool-lock';badge.innerHTML=icon('lock');el.append(badge);}else if(!locked)badge?.remove();});
+  if(!ownsTool(state,tool))selectTool('smart');
   $('#storage-count').textContent=[...Object.values(state.harvest),...Object.values(state.products||{})].reduce((a,b)=>a+b,0);
   $('#quest-count').textContent=`${state.quests.length}/3`;
   $('#seed-tray').innerHTML=Object.entries(CROPS).map(([id,c])=>{
@@ -114,16 +118,17 @@ function plotClick(index) {
   if(tool==='harvest'||(tool==='smart'&&status==='ready')) { doPlotAction('harvest',index); return; }
   if(status==='dry') {toast('Plantação seca: crescimento pausado. Selecione Regar e clique no canteiro.',true);return;}
   if(status==='growing') toast(`${CROPS[p.crop].name}: ${time(p.readyAt-Date.now())} para colher.${p.watered?' Já recebeu água.':' Experimente a ferramenta Regar!'}`);
-  else toast('Use Cuidar ou Colher para recolher essa plantação.');
+  else toast('Use Selecionar para recolher essa plantação.');
 }
 function activateMapTarget(target) {
+  const cell=target.closest('[data-pond-cell]');if(cell){selectedPondSlot=Number(cell.dataset.pondCell);openModal('pond');return;}
   const animal=target.closest('[data-animal]');if(animal){animalIndex=Number(animal.dataset.animal);openModal('animal');return;}
-  const building=target.closest('[data-building]');if(building){if(building.dataset.building==='house')openModal('rename');else if(building.dataset.building==='pond')openModal('pond');else if(building.dataset.building==='mill')openModal('mill');else if(building.dataset.building==='barn')openModal('storage');else{shopTab='animals';openModal('shop');}return;}
+  const building=target.closest('[data-building]');if(building){if(building.dataset.building==='house')openModal('rename');else if(building.dataset.building==='pond'){selectedPondSlot=null;openModal('pond');}else if(building.dataset.building==='mill')openModal('mill');else if(building.dataset.building==='barn')openModal('storage');else{shopTab='animals';openModal('shop');}return;}
   const plot=target.closest('[data-plot]');if(plot)plotClick(Number(plot.dataset.plot));
 }
 farm.addEventListener('click',e=>{
   if(suppressMapClick&&e.detail!==0){suppressMapClick=false;e.preventDefault();return;}
-  if(e.target.closest('[data-plot],[data-animal],[data-building]'))activateMapTarget(e.target);else farm3d?.moveTo(e.clientX,e.clientY);
+  if(e.target.closest('[data-plot],[data-animal],[data-building],[data-pond-cell]'))activateMapTarget(e.target);else farm3d?.moveTo(e.clientX,e.clientY);
 });
 // Um clique só age ao soltar. Arrastar ultrapassa o limiar e passa a mover apenas a câmera.
 farm.addEventListener('pointerdown',e=>{
@@ -141,7 +146,7 @@ window.addEventListener('pointermove',e=>{
 },{passive:false});
 function finishPointer(e){const g=pointerGesture;if(!g||(e.pointerId!==undefined&&g.id!==e.pointerId))return;pointerGesture=null;suppressMapClick=g.dragged;if(g.dragged)farm3d?.finishPan();farm.classList.remove('is-dragging');if(farm.hasPointerCapture(g.id))farm.releasePointerCapture(g.id);}
 window.addEventListener('pointerup',finishPointer);window.addEventListener('pointercancel',finishPointer);farm.addEventListener('lostpointercapture',finishPointer);window.addEventListener('blur',finishPointer);
-farm.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('[data-plot],[data-animal],[data-building]')){e.preventDefault();activateMapTarget(e.target);}});
+farm.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('[data-plot],[data-animal],[data-building],[data-pond-cell]')){e.preventDefault();activateMapTarget(e.target);}});
 function showPlotInfo(index) {
   if(farm3d?.busy||pointerGesture?.dragged){$('#plot-tooltip').classList.remove('visible');return;}
   const p=state.plots[index], c=p.crop&&CROPS[p.crop], care=plotCare(p), tip=$('#plot-tooltip');
@@ -171,7 +176,7 @@ function openSeedBag(index=null){
 function closeSeedBag(){if($('#seed-section').open)$('#seed-section').close();pendingPlantIndex=null;seedReturnFocus?.isConnected&&seedReturnFocus.focus({preventScroll:true});}
 $('#seed-tray').addEventListener('click',e=>{const el=e.target.closest('[data-seed]');if(!el||el.disabled)return;
   if(!state.seeds[el.dataset.seed]){closeSeedBag();shopTab='seeds';openModal('shop');toast('Compre sementes para continuar plantando.');return;}
-  const index=pendingPlantIndex;selectedCrop=el.dataset.seed;closeSeedBag();selectTool('plant');render();if(index!==null)doPlotAction('plant',index,{crop:selectedCrop});
+  const index=pendingPlantIndex;selectedCrop=el.dataset.seed;closeSeedBag();selectTool('smart');render();if(index!==null)doPlotAction('plant',index,{crop:selectedCrop});
 });
 
 function openModal(type) {if($('#seed-section').open)closeSeedBag();if(type==='rename')farm3d?.cancel(); returnFocus=document.activeElement; modalType=type; renderModal(); $('#modal').showModal(); }
@@ -207,12 +212,15 @@ function refreshPondStatus(now) {
   });
 }
 function pondShop() {
-  const level=levelInfo(state.xp).level,owned=state.pond?.owned;
-  if(!owned)return `<article class="pond-offer"><span class="pond-illustration" aria-hidden="true">${icon('pond')}</span><h3>Um lago para sua fazenda</h3><p>Crie peixes e instale até ${POND.cageLimit} gaiolas de camarões. O personagem pode passear por toda a margem.</p><button class="primary-button" data-buy-pond ${level<POND.level||state.coins<POND.cost?'disabled':''}>${level<POND.level?`Disponível no nível ${POND.level}`:`Comprar lago · ${POND.cost} moedas`}</button></article>`;
-  return `<div class="shop-grid aquatic-shop">${Object.entries(AQUACULTURE).map(([id,d])=>{
-    const count=state.pond.stock.filter(a=>a.type===id).length,limit=id==='fish'?POND.fishLimit:POND.cageLimit;
-    return `<article class="shop-card produce-card" data-produce="${id}"><div class="shop-crop">${cropIcon(id)}<span>${time(d.duration)} / produto</span></div><h3>${d.name}</h3><p>Venda: <b>● ${PRODUCTS[d.product].sell}</b> · +${d.xp} XP</p><small>${count} / ${limit} ${id==='fish'?'criação':'gaiolas'} · Usa ${FEEDS[d.feed].name.toLowerCase()}</small><button data-buy-aquatic="${id}" ${level<d.level||count>=limit||state.coins<d.cost?'disabled':''}>${level<d.level?`Nível ${d.level}`:count>=limit?'Limite atingido':`Comprar · ${d.cost} moedas`}</button></article>`;
-  }).join('')}</div><p class="modal-footnote">A primeira ração cobre 4 ciclos. Depois, prepare ração aquática com soja e trigo no moinho. Sem ração, a produção pausa. <button class="mill-link" data-open-mill>Ir ao moinho</button></p>`;
+  const level=levelInfo(state.xp).level;
+  if(!state.pond.owned)return `<article class="pond-offer"><span class="pond-illustration">${icon('pond')}</span><h3>Um lago para sua fazenda</h3><p>Um lago quadrado com 16 viveiros do tamanho dos canteiros. Em cada um, escolha criar peixes ou camarões. Caminhe pelas quatro margens.</p><button class="primary-button" data-buy-pond ${level<POND.level||state.coins<POND.cost?'disabled':''}>${level<POND.level?`Disponível no nível ${POND.level}`:`Comprar lago · ${POND.cost} moedas`}</button></article>`;
+  return `<p class="pond-intro">Escolha um viveiro no lago ou nos espaços abaixo. Cada espaço recebe peixes ou camarões.</p><div class="pond-cell-grid">${Array.from({length:POND.slots},(_,slot)=>{const a=state.pond.stock.find(a=>a.slot===slot);return `<button class="pond-cell ${selectedPondSlot===slot?'selected':''}" data-choose-pond-slot="${slot}" aria-pressed="${selectedPondSlot===slot}" aria-label="Viveiro ${slot+1}, ${a?AQUACULTURE[a.type].name:'vazio'}">${a?cropIcon(a.type):'<span class="empty-cell">+</span>'}<b>Viveiro ${slot+1}</b><small>${a?a.type==='fish'?'Peixes':'Camarões':'Escolher criação'}</small></button>`;}).join('')}</div>`;
+}
+function pondSelection(){
+  if(selectedPondSlot===null||!state.pond.owned)return '';
+  const slot=selectedPondSlot,a=state.pond.stock.find(a=>a.slot===slot),i=state.pond.stock.indexOf(a),level=levelInfo(state.xp).level;
+  if(a)return `<section class="pond-selection"><h3>Viveiro ${slot+1}</h3><article class="pond-stock-card produce-card" data-produce="${a.type}" data-pond-stock="${i}">${cropIcon(a.type)}<div><h3>${AQUACULTURE[a.type].name}</h3><p class="pond-status"></p><div class="pond-buttons"><button data-feed-aquatic="${i}">Alimentar · 1 saco</button><button data-collect-aquatic="${i}">Coletar</button></div></div></article></section>`;
+  return `<section class="pond-selection"><h3>O que criar no viveiro ${slot+1}?</h3><div class="shop-grid aquatic-shop">${Object.entries(AQUACULTURE).map(([id,d])=>`<article class="shop-card produce-card" data-produce="${id}"><div class="shop-crop">${cropIcon(id)}<span>${time(d.duration)} / produto</span></div><h3>${id==='fish'?'Peixes':'Camarões'}</h3><p>Venda: <b>● ${PRODUCTS[d.product].sell}</b> · ${d.xp} XP</p><button data-buy-aquatic="${id}" data-slot="${slot}" ${level<d.level||state.coins<d.cost?'disabled':''}>${level<d.level?`Nível ${d.level}`:`Colocar · ${d.cost} moedas`}</button></article>`).join('')}</div><p class="modal-footnote">Ração para os primeiros 4 ciclos incluída. Prepare as próximas com soja e trigo no moinho.</p></section>`;
 }
 function renderModal() {
   const titles={shop:['TUDO PARA SUA PLANTAÇÃO','Loja da fazenda'],pond:['CRIAÇÃO NA ÁGUA','Seu lago'],mill:['DA COLHEITA AO COCHO','Moinho de ração'],storage:['SUA PRODUÇÃO','Seu armazém'],help:['COLHEITA FELIZ · GAME-2','Como jogar'],expand:['MAIS ESPAÇO PARA PLANTAR','Expanda sua fazenda'],goals:['RECOMPENSAS','Missões da fazenda'],rename:['DO SEU JEITO','Fazenda e personagem'],animal:['SEU CERCADO','Criação de animais']};
@@ -221,13 +229,14 @@ function renderModal() {
     $('#modal-body').innerHTML=`<div class="modal-summary"><p>Sementes pequenas. Possibilidades enormes.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div><div class="shop-grid">${Object.entries(CROPS).map(([id,c])=>{
       const locked=levelInfo(state.xp).level<c.level;
       return `<article class="shop-card produce-card ${locked?'locked':''}" data-produce="${id}"><div class="shop-crop">${cropIcon(id)}<span>${locked?`Nível ${c.level}`:time(c.duration)}</span></div><h3>${c.name}</h3><p>Colheita: <b>● ${c.sell}</b> <span>· ${c.xp} XP</span></p><small>Na sua bolsa: ${state.seeds[id]}</small><button data-buy="${id}" ${locked||state.coins<c.cost?'disabled':''}>${locked?icon('lock'):'+'} ${locked?`Nível ${c.level}`:`Comprar · ${c.cost}`}</button></article>`;
-    }).join('')}</div><div class="supply-row">${icon('fertilizer')}<div><b>Adubo rápido</b><small>Adianta 20% do ciclo. Você tem ${state.supplies?.fertilizer ?? 3}.</small></div><button data-buy-fertilizer ${state.coins<FERTILIZER_PRICE?'disabled':''}>Comprar · ${FERTILIZER_PRICE} moedas</button></div><p class="modal-footnote">Novos cultivos são liberados ao subir de nível. Capine e dedetize o mesmo cultivo para ganhar um produto extra na colheita.</p>`;
+    }).join('')}</div><p class="modal-footnote">Novos cultivos são liberados ao subir de nível. Capine e dedetize o mesmo cultivo para ganhar um produto extra na colheita.</p>`;
     if(shopTab==='animals')$('#modal-body').innerHTML=`<div class="modal-summary"><p>Alimente seus animais e colete os produtos.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div><div class="shop-grid animal-shop">${Object.entries(ANIMALS).map(([id,a])=>`<article class="shop-card produce-card" data-produce="${id}"><div class="shop-crop">${animalIcon(id)}</div><h3>${a.name}</h3><p>${PRODUCTS[a.product].plural} a cada ${time(a.duration)}</p><small>${FEEDS[a.feed].name} · 1 saco / 4 ciclos</small><button data-buy-animal="${id}" ${levelInfo(state.xp).level<a.level||state.coins<a.cost||(state.animals||[]).length>=6?'disabled':''}>${levelInfo(state.xp).level<a.level?'Nível '+a.level:'Comprar · '+a.cost}</button></article>`).join('')}</div><p class="modal-footnote">Até 6 animais na fazenda, cada espécie no seu cercado. A primeira ração está incluída; as próximas são preparadas no moinho. <button class="mill-link" data-open-mill>Produzir ração</button></p>`;
-    if(shopTab==='tools')$('#modal-body').innerHTML=`<div class="supply-row">${icon('fertilizer')}<div><b>Adubo rápido</b><small>Adianta 20% do ciclo. Você tem ${state.supplies?.fertilizer ?? 3}.</small></div><button data-buy-fertilizer ${state.coins<FERTILIZER_PRICE?'disabled':''}>Comprar · ${FERTILIZER_PRICE} moedas</button></div><p class="modal-footnote">Regador, enxada e dedetizador são ferramentas permanentes. O adubo é consumido a cada aplicação.</p>`;
-    if(shopTab==='pond')$('#modal-body').innerHTML=`<div class="modal-summary"><p>Peixes e camarões, do seu lago ao armazém.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div>${pondShop()}${state.pond?.owned?'<button class="primary-button full" data-manage-pond>Cuidar do meu lago</button>':''}`;
+    if(shopTab==='tools')$('#modal-body').innerHTML=`<div class="modal-summary"><p>Regador e seleção já estão disponíveis. Equipe sua fazenda.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div><div class="shop-grid tool-shop">${Object.entries(TOOL_SHOP).map(([id,d])=>{const owned=id!=='fertilize'&&ownsTool(state,id);return `<article class="shop-card tool-card">${icon(d.icon)}<h3>${d.name}</h3><p>${d.detail}</p><small>${id==='fertilize'?`${state.supplies.fertilizer} unidades na bolsa`:owned?'Compra permanente · Adquirida':'Libera a ferramenta da barra'}</small><button ${id==='fertilize'?'data-buy-fertilizer':`data-buy-tool="${id}"`} ${owned||state.coins<d.cost?'disabled':''}>${owned?'Adquirida':`Comprar · ${d.cost} moedas`}</button></article>`;}).join('')}</div><p class="modal-footnote">Clique num terreno vazio para plantar e numa plantação pronta com Selecionar para colher. O adubo é consumido a cada uso.</p>`;
+    if(shopTab==='pond')$('#modal-body').innerHTML=`<div class="modal-summary"><p>Um espaço para cada criação.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div>${pondSelection()}${pondShop()}`;
+    if(shopTab==='pond')refreshPondStatus(Date.now());
     $('#modal-body').insertAdjacentHTML('afterbegin',`<div class="shop-tabs" role="tablist" aria-label="Categorias da loja">${[['seeds','Sementes'],['animals','Animais'],['pond','Lago'],['tools','Ferramentas']].map(([id,name])=>`<button role="tab" aria-selected="${shopTab===id}" data-shop-tab="${id}">${name}</button>`).join('')}</div>`);
   } else if(modalType==='pond') {
-    $('#modal-body').innerHTML=`<div class="modal-summary"><p>${state.pond?.owned?'Alimente sua criação e colete a produção.':'Um novo espaço para sua fazenda crescer.'}</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div>${state.pond?.stock.length?`<div class="pond-stock">${state.pond.stock.map((a,i)=>`<article class="pond-stock-card produce-card" data-produce="${a.type}" data-pond-stock="${i}">${cropIcon(a.type)}<div><h3>${AQUACULTURE[a.type].name}${a.type==='shrimp'?' '+state.pond.stock.slice(0,i+1).filter(s=>s.type==='shrimp').length:''}</h3><p class="pond-status"></p><div class="pond-buttons"><button data-feed-aquatic="${i}">Alimentar · 1 saco</button><button data-collect-aquatic="${i}">Coletar</button></div></div></article>`).join('')}</div>`:''}${pondShop()}`;
+    $('#modal-body').innerHTML=`<div class="modal-summary"><p>Peixes e camarões nos seus viveiros.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div>${pondSelection()}${pondShop()}`;
     refreshPondStatus(Date.now());
   } else if(modalType==='mill') {
     renderMill();
@@ -250,7 +259,7 @@ function renderModal() {
     if(!saveAvailable)$('#rename-form').insertAdjacentHTML('afterbegin','<p class="profile-error" id="profile-save-warning">O navegador está bloqueando o salvamento. As mudanças ficam disponíveis nesta aba.</p>');
     $('#rename-form').insertAdjacentHTML('afterbegin',`<fieldset class="farmer-choices"><legend>Seu personagem</legend>${[['male','👨🏻‍🌾','Fazendeiro'],['female','👩🏻‍🌾','Fazendeira']].map(([id,emoji,name])=>`<label><input type="radio" name="farmer" value="${id}" ${(state.farmer||'male')===id?'checked':''}><span>${emoji}</span><b>${name}</b></label>`).join('')}</fieldset>`);
   } else {
-    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Clique num canteiro vazio para abrir as sementes. Escolha o cultivo: o personagem caminha até lá e planta. Compre mais sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>Cada canteiro regado gasta 1 água. Você começa com 30 e recupera 1 a cada 2 minutos, até 30, inclusive fora do jogo. O contador no topo mostra a próxima recarga. A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Clique no seu avatar no topo para escolher fazendeiro ou fazendeira. Use <b>WASD</b>, as setas ou clique no chão para andar em 3D; mover cancela tarefas pendentes. Segure o botão esquerdo e arraste para mover a câmera. Os terrenos dourados e o botão <b>Expandir</b> liberam novos canteiros.<br>Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
+    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Clique num canteiro vazio para abrir as sementes. Escolha o cultivo: o personagem caminha até lá e planta. Compre mais sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>Cada canteiro regado gasta 1 água. Você começa com 30 e recupera 1 a cada 2 minutos, até 30, inclusive fora do jogo. O contador no topo mostra a próxima recarga. A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Compre enxada, dedetizador e adubo em Loja → Ferramentas. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Clique no seu avatar no topo para escolher fazendeiro ou fazendeira. Use <b>WASD</b>, as setas ou clique no chão para andar em 3D; mover cancela tarefas pendentes. Segure o botão esquerdo e arraste para mover a câmera. Os terrenos dourados e o botão <b>Expandir</b> liberam novos canteiros.<br>Atalhos: <b>1</b> Selecionar · <b>2</b> Regar · <b>3</b> Capinar · <b>4</b> Dedetizar · <b>5</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
   }
 }
 $('#modal-body').addEventListener('click',e=>{
@@ -260,8 +269,10 @@ $('#modal-body').addEventListener('click',e=>{
   if(e.target.closest('#apply-profile')){saveProfile();return;}
   const tab=e.target.closest('[data-shop-tab]');if(tab){shopTab=tab.dataset.shopTab;renderModal();return;}
   if(e.target.closest('[data-manage-pond]')){modalType='pond';renderModal();return;}
+  const chooseCell=e.target.closest('[data-choose-pond-slot]');if(chooseCell){selectedPondSlot=Number(chooseCell.dataset.choosePondSlot);renderModal();$('.pond-selection')?.scrollIntoView({block:'nearest',behavior:'smooth'});return;}
+  const buyTool=e.target.closest('[data-buy-tool]');if(buyTool&&!buyTool.disabled){run('buyTool',{tool:buyTool.dataset.buyTool});return;}
   const pond=e.target.closest('[data-buy-pond]');if(pond&&!pond.disabled){run('buyPond');return;}
-  const aquatic=e.target.closest('[data-buy-aquatic]');if(aquatic&&!aquatic.disabled){run('buyAquatic',{aquatic:aquatic.dataset.buyAquatic});return;}
+  const aquatic=e.target.closest('[data-buy-aquatic]');if(aquatic&&!aquatic.disabled){run('buyAquatic',{aquatic:aquatic.dataset.buyAquatic,slotIndex:Number(aquatic.dataset.slot)});return;}
   const feedAquatic=e.target.closest('[data-feed-aquatic]');if(feedAquatic&&!feedAquatic.disabled){run('feedAquatic',{stockIndex:Number(feedAquatic.dataset.feedAquatic)});return;}
   const collectAquatic=e.target.closest('[data-collect-aquatic]');if(collectAquatic&&!collectAquatic.disabled){run('collectAquatic',{stockIndex:Number(collectAquatic.dataset.collectAquatic)});return;}
   const buyAnimal=e.target.closest('[data-buy-animal]');if(buyAnimal&&!buyAnimal.disabled){run('buyAnimal',{animal:buyAnimal.dataset.buyAnimal});return;}
@@ -286,7 +297,7 @@ $('#modal-body').addEventListener('submit',e=>{if(e.target.id==='rename-form'){e
 $('#modal-body').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.closest('#rename-form')){e.preventDefault();saveProfile();}});
 $('#modal-body').addEventListener('input',e=>{if(e.target.id==='farm-name-input'){e.target.removeAttribute('aria-invalid');$('#profile-error').hidden=true;}});
 $('#open-shop').addEventListener('click',()=>{shopTab='seeds';openModal('shop');});
-$('#open-pond').addEventListener('click',()=>openModal('pond'));
+$('#open-pond').addEventListener('click',()=>{selectedPondSlot=null;openModal('pond');});
 $('#open-mill').addEventListener('click',()=>openModal('mill'));
 $('#open-expand').addEventListener('click',()=>{expansionIndex=state.plots.findIndex(p=>!p.unlocked);if(expansionIndex>=0)openModal('expand');});
 $('#open-storage').addEventListener('click',()=>openModal('storage'));
@@ -304,7 +315,7 @@ $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal();});
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')) { const r=$('#modal').getBoundingClientRect(); if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom) closeModal();}});
 document.addEventListener('keydown',e=>{
   if(modalType||$('#seed-section').open||e.ctrlKey||e.altKey||e.metaKey||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
-  const shortcuts={1:'smart',2:'plant',3:'water',4:'harvest',5:'weed',6:'spray',7:'fertilize'};
+  const shortcuts={1:'smart',2:'water',3:'weed',4:'spray',5:'fertilize'};
   if(shortcuts[e.key]) selectTool(shortcuts[e.key]);
 });
 function zoomMap(delta) { zoom=Math.max(1,Math.min(1.6,zoom+delta)); const w=1400/zoom,h=820/zoom; if(farm3d){farm3d.setZoom(zoom);farm.dataset.zoom=zoom;}else {const v=farm.viewBox.baseVal,cx=v.x+v.width/2,cy=v.y+v.height/2;farm.setAttribute('viewBox',`${cx-w/2} ${cy-h/2} ${w} ${h}`);} $('#zoom-out').disabled=zoom<=1; $('#zoom-in').disabled=zoom>=1.59; }

@@ -1,8 +1,8 @@
-# GAME-2 — Colheita Feliz 3D, versão 0.8.1
+# GAME-2 — Colheita Feliz 3D, versão 0.9.0
 
 Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
 
-![Fazenda em toda a janela, com recursos no canto superior direito](docs/images/fazenda-v081.png)
+![Fazenda em toda a janela, com recursos no canto superior direito](docs/images/fazenda-v09.png)
 
 A interface ocupa toda a janela do navegador. Cada fazenda começa com os recursos iniciais descritos abaixo.
 
@@ -21,7 +21,19 @@ Clique num **canteiro vazio** para abrir as sementes. Escolher um cultivo manda 
 
 A alteração acontece durante a animação, após chegar ao canteiro. É possível selecionar vários canteiros para formar uma fila de até 12 tarefas. Cada tarefa conserva a ferramenta e a semente escolhidas no clique; cliques repetidos na mesma tarefa não duplicam produtos. As condições são verificadas novamente quando a ação acontece. Uma tarefa ainda não aplicada não gasta sementes ou adubo e não é salva ao fechar a aba.
 
-Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 7** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
+Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 5** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
+
+## Ferramentas e viveiros — versão 0.9.0
+
+- Barra com **Selecionar, Regar, Capinar, Dedetizar e Adubar** (atalhos 1–5). Clique num canteiro vazio para plantar; com Selecionar, clique numa plantação pronta para colher. A cesta e o saco de sementes continuam nas animações.
+- Fazenda nova começa com **30 águas**, com recarga de uma a cada dois minutos, e sem ferramentas de cuidado compradas. Seleção e regador são gratuitos.
+- **Loja → Ferramentas:** enxada por 60 moedas e dedetizador por 80, compras permanentes. Adubo por 15 moedas/unidade; a primeira compra libera Adubar. Não é possível usar ferramentas bloqueadas por atalhos ou ações diretas.
+- Lago quadrado de 12 × 12 unidades, ocupando o canto da fazenda, com **16 viveiros de 2,24 × 2,24**, o mesmo tamanho dos canteiros. Clique num espaço para escolher peixe ou camarão; criações ocupadas mostram alimentação e coleta. Produção, ração e venda continuam funcionando offline.
+- Casa principal ampliada em 45%, moinho em 30% e galinheiro em 20%, com posições e colisões ajustadas para conservar as passagens.
+
+Saves anteriores conservam saldo, água, sementes, adubo e criações. As criações antigas recebem posições próprias no lago sem perder produção acumulada. Enxada e dedetizador passam a exigir compra; quem já tinha adubo conserva o estoque e o acesso a Adubar.
+
+[Ver ferramentas na loja](docs/images/ferramentas-v09.png) · [Ver os viveiros](docs/images/viveiros-v09.png) · [Validação desta versão](docs/VALIDACAO-09.md).
 
 ## Movimento e câmera — versão 0.8.1
 
@@ -60,7 +72,7 @@ As medições antes/depois, o cenário de teste e suas limitações estão em [d
 
 Um saco alimenta uma criação por quatro ciclos. Galinhas usam ração de aves; vacas e ovelhas usam ração de ruminantes; peixes e gaiolas de camarões usam ração aquática. Sem ração, a produção pausa, inclusive offline. A primeira alimentação de cada animal/criação comprado continua incluída. A reserva de água das plantações permanece independente.
 
-O lago custa 240 moedas no nível 2; uma criação de peixes custa 60 moedas e até três gaiolas de camarões custam 120 moedas cada (nível 3). Peixes produzem a cada minuto e valem 24 moedas; camarões produzem a cada 90 segundos e valem 38 moedas. Preços, receitas e tempos são parâmetros provisórios do jogo, sem afirmar equivalência nutricional real.
+O lago custa 240 moedas no nível 2 e tem 16 viveiros. Cada espaço aceita uma criação de peixes por 60 moedas (nível 2) ou camarões por 120 moedas (nível 3). Peixes produzem a cada minuto e valem 24 moedas; camarões produzem a cada 90 segundos e valem 38 moedas. Preços, receitas e tempos são parâmetros provisórios do jogo, sem afirmar equivalência nutricional real.
 
 ## Água, personagem e expansão — versão 0.5.1
 

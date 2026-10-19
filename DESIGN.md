@@ -94,3 +94,11 @@ Em telas estreitas, o enquadramento inicial aproxima a fazenda para aumentar os 
 ## Atualização 0.8.1 — caminhada e arraste
 
 O usuário identificou travamentos ao caminhar e arrastar a câmera. A atualização remove o limite de aproximadamente 30 FPS, agrupa partes rígidas dos modelos sem remover suas articulações animadas, preserva os alvos acessíveis de clique durante a projeção e acumula os eventos do mouse até o próximo quadro. A resolução do 3D se ajusta ao desempenho; textos e botões permanecem nítidos. Sombras de contato acompanham fazendeiro e animais; sombras do cenário são conservadas em cache. A arte dos cartões e as regras de cultivo permanecem as da versão anterior.
+
+## Atualização 0.9 — ferramentas compráveis e lago em viveiros
+
+O usuário aprovou a fluidez da 0.8.1 e pediu progressão por compra de ferramentas, retirada dos botões Plantar/Colher, lago quadrado ocupando o canto, gaiolas do tamanho dos canteiros com escolha de peixe ou camarão e casas maiores. A barra tem cinco opções: Selecionar, Regar, Capinar, Dedetizar e Adubar. Plantio e colheita são contextuais e conservam suas animações. A reserva inicial continua em 30 águas e a recarga permanece em dois minutos por unidade.
+
+Novas fazendas não recebem adubo nem ferramentas de cuidado gratuitamente. Enxada custa 60 moedas, dedetizador 80 e adubo 15 por aplicação; compras permanentes não podem ser cobradas duas vezes. A primeira compra de adubo libera sua ferramenta. Bloqueios valem na interface, atalhos e regras, sem contornar a exigência de água. Saves antigos preservam seus recursos e criações; adubo já guardado continua disponível. Enxada e dedetizador recebem o novo bloqueio até a compra.
+
+O lago tem 12 × 12 unidades e 16 viveiros independentes, com 2,24 × 2,24 unidades cada, como um canteiro. Em cada espaço vazio, o jogador escolhe peixe (60 moedas, nível 2) ou camarão (120 moedas, nível 3). Não há limite por espécie além da capacidade total; dois estoques não podem ocupar o mesmo espaço. Os estoques antigos recebem slots livres sem reiniciar prazos nem apagar produção. Alimento, coleta, XP e venda usam as regras anteriores. O personagem percorre as quatro margens, sem entrar na água. Casa, moinho e galinheiro foram ampliados, com posições e colisões revistas.

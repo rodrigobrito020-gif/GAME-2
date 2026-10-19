@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CROPS, QUESTS, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, POND, AQUACULTURE, PRODUCTS, FEED_RECIPES, PLOT_LAYOUT, aquaticProduction, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
+import { CROPS, QUESTS, TOOL_SHOP, ownsTool, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, POND, AQUACULTURE, PRODUCTS, FEED_RECIPES, PLOT_LAYOUT, aquaticProduction, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
 const NOW=1_800_000_000_000;
 test('novo sítio começa com nove canteiros, sementes e uma colheita pronta',()=>{
   const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,54);
@@ -101,6 +101,7 @@ test('guia: duas plantas iniciais de nabo e migração de saves antigos',()=>{
 });
 test('mato, pragas e seca reduzem saúde; ferramentas restauram saúde sem XP repetido',()=>{
   let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  for(const tool of ['weed','spray'])s=action(s,'buyTool',{tool},NOW).state;
   assert.equal(plotCare(s.plots[2],NOW+1).health,90);
   s=action(s,'water',{index:2},NOW).state;
   assert.equal(plotCare(s.plots[2],NOW+1).health,100);
@@ -114,6 +115,7 @@ test('mato, pragas e seca reduzem saúde; ferramentas restauram saúde sem XP re
 });
 test('adubo consome uma unidade, adianta tempo e não repete aplicação',()=>{
   let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  for(let i=0;i<3;i++)s=action(s,'buyFertilizer',{},NOW).state;
   s=action(s,'water',{index:2},NOW).state;
   s=action(s,'fertilize',{index:2},NOW+1000).state;
   assert.equal(s.supplies.fertilizer,2);assert.equal(s.plots[2].readyAt,NOW+16_500);
@@ -171,6 +173,7 @@ test('regar depois de uma longa espera inicia o ciclo; o tempo seco não acumula
 });
 test('adubo não substitui água nem é consumido em planta seca; save antigo não burla a rega',()=>{
  let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+ for(let i=0;i<3;i++)s=action(s,'buyFertilizer',{},NOW).state;
  assert.equal(action(s,'fertilize',{index:2},NOW+86400_000).ok,false);assert.equal(s.supplies.fertilizer,3);
  delete s.plots[2].growthStartedAt;
  s=decodeSave(JSON.stringify(s),NOW+86400_000);assert.equal(plotStatus(s.plots[2],NOW+86400_000),'dry');assert.equal(action(s,'harvest',{index:2},NOW+86400_000).ok,false);
@@ -243,20 +246,21 @@ test('lago exige nível e moedas, não se compra duas vezes e preserva a água',
  assert.equal(bought.ok,true);assert.equal(bought.state.coins,1000-POND.cost);assert.deepEqual(bought.state.pond,{owned:true,stock:[]});assert.deepEqual(bought.state.water,s.water);assert.deepEqual(s,before);
  assert.equal(action(bought.state,'buyPond',{},NOW).ok,false);
 });
-test('criação aquática exige lago, nível, preço e respeita um cardume e três gaiolas',()=>{
+test('viveiros exigem lago, nível e moedas; cada um aceita peixe ou camarão, até 16',()=>{
  let s=newGame(NOW);s.coins=10000;s.xp=30;
- assert.equal(action(s,'buyAquatic',{aquatic:'fish'},NOW).ok,false);
+ assert.equal(action(s,'buyAquatic',{aquatic:'fish',slotIndex:0},NOW).ok,false);
  s=action(s,'buyPond',{},NOW).state;
- assert.equal(action(s,'buyAquatic',{aquatic:'shrimp'},NOW).ok,false);
- assert.equal(action(s,'buyAquatic',{aquatic:'__proto__'},NOW).ok,false);
- s=action(s,'buyAquatic',{aquatic:'fish'},NOW).state;
+ assert.equal(action(s,'buyAquatic',{aquatic:'shrimp',slotIndex:0},NOW).ok,false);
+ assert.equal(action(s,'buyAquatic',{aquatic:'__proto__',slotIndex:0},NOW).ok,false);
+ s=action(s,'buyAquatic',{aquatic:'fish',slotIndex:7},NOW).state;
+ assert.equal(s.pond.stock[0].slot,7);assert.equal(action(s,'buyAquatic',{aquatic:'shrimp',slotIndex:7},NOW).ok,false);
+ for(const slotIndex of [-1,16,.5,'0',null])assert.equal(action(s,'buyAquatic',{aquatic:'fish',slotIndex},NOW).ok,false);
+ s.xp=80;for(let i=0;i<POND.slots;i++)if(i!==7){const r=action(s,'buyAquatic',{aquatic:i%2?'fish':'shrimp',slotIndex:i},NOW);assert.equal(r.ok,true);s=r.state;}
+ assert.equal(s.pond.stock.length,16);assert.equal(new Set(s.pond.stock.map(a=>a.slot)).size,16);
  assert.equal(action(s,'buyAquatic',{aquatic:'fish'},NOW).ok,false);
- s.xp=80;for(let i=0;i<3;i++)s=action(s,'buyAquatic',{aquatic:'shrimp'},NOW).state;
- assert.equal(s.pond.stock.length,4);assert.equal(s.coins,10000-POND.cost-AQUACULTURE.fish.cost-3*AQUACULTURE.shrimp.cost);
- assert.equal(action(s,'buyAquatic',{aquatic:'shrimp'},NOW).ok,false);
- const poor=structuredClone(s);poor.pond.stock=[];poor.coins=0;
- assert.equal(action(poor,'buyAquatic',{aquatic:'fish'},NOW).ok,false);
- for(const stockIndex of [-1,4,0.5,'0'])assert.equal(action(s,'collectAquatic',{stockIndex},NOW).ok,false);
+ const cost=s.pond.stock.reduce((n,a)=>n+AQUACULTURE[a.type].cost,0);assert.equal(s.coins,10000-POND.cost-cost);
+ const poor=structuredClone(s);poor.pond.stock=[];poor.coins=0;assert.equal(action(poor,'buyAquatic',{aquatic:'fish',slotIndex:0},NOW).ok,false);
+ for(const stockIndex of [-1,16,0.5,'0'])assert.equal(action(s,'collectAquatic',{stockIndex},NOW).ok,false);
 });
 for(const type of ['fish','shrimp'])test(`${type}: produção offline pausa sem ração, coleta única, alimentação retoma e venda paga o valor correto`,()=>{
  let s=newGame(NOW);s.coins=2000;s.xp=80;s.feed.aquatic=1;
@@ -281,7 +285,7 @@ test('saves antigos recebem lago fechado e estoques de peixes vazios; saves inv�
  const old=newGame(NOW);delete old.pond;delete old.products.fish;delete old.products.shrimp;old.products.egg=3;old.coins=777;
  const s=decodeSave(JSON.stringify(old),NOW);assert.equal(s.coins,777);assert.equal(s.products.egg,3);assert.equal(s.products.fish,0);assert.deepEqual(s.pond,{owned:false,stock:[]});
  const fish={type:'fish',readyAt:NOW+60000,fedUntil:NOW+240000,pending:0};
- for(const pond of [null,{owned:1,stock:[]},{owned:false,stock:[fish]},{owned:true,stock:[fish,fish]},{owned:true,stock:[{...fish,pending:-1}]},{owned:true,stock:[{...fish,type:'__proto__'}]}]){
+ for(const pond of [null,{owned:1,stock:[]},{owned:false,stock:[fish]},{owned:true,stock:[{...fish,slot:0},{...fish,slot:0}]},{owned:true,stock:[{...fish,pending:-1}]},{owned:true,stock:[{...fish,type:'__proto__'}]}]){
   assert.equal(decodeSave(JSON.stringify({...s,pond}),NOW),null);
  }
 });
@@ -318,4 +322,24 @@ test('save recusa moinho forjado, prazos inválidos e quantidades negativas de r
  const s=newGame(NOW);
  for(const mill of [null,{job:{recipe:'__proto__',batches:1,startedAt:NOW,readyAt:NOW+20000}},{job:{recipe:'aquatic',batches:1,startedAt:NOW,readyAt:NOW+1}}])assert.equal(decodeSave(JSON.stringify({...s,mill}),NOW),null);
  assert.equal(decodeSave(JSON.stringify({...s,feed:{poultry:-1,livestock:0,aquatic:0}}),NOW),null);
+});
+
+test('fazenda nova tem 30 águas, nenhuma ferramenta comprada e zero adubo',()=>{
+ const s=newGame(NOW);assert.deepEqual(s.tools,{weed:false,spray:false,fertilize:false});assert.equal(s.supplies.fertilizer,0);assert.equal(s.water.amount,30);
+ for(const type of ['weed','spray','fertilize']){const result=action(s,type,{index:0},NOW);assert.equal(result.ok,false);assert.equal(result.state,s);assert.equal(ownsTool(s,type),false);}
+});
+test('comprar ferramenta debita uma vez, libera uso e não muda sementes nem água',()=>{
+ let s=newGame(NOW);const original=structuredClone(s);
+ for(const tool of ['weed','spray']){const before=s.coins,r=action(s,'buyTool',{tool},NOW);assert.equal(r.ok,true);s=r.state;assert.equal(s.coins,before-TOOL_SHOP[tool].cost);assert.equal(ownsTool(s,tool),true);assert.equal(action(s,'buyTool',{tool},NOW).ok,false);}
+ assert.deepEqual(s.seeds,original.seeds);assert.deepEqual(s.water,original.water);assert.deepEqual(decodeSave(JSON.stringify(s),NOW).tools,s.tools);
+ for(const tool of ['__proto__','fertilize','water'])assert.equal(action(s,'buyTool',{tool},NOW).ok,false);
+ const poor=newGame(NOW);poor.coins=0;assert.equal(action(poor,'buyTool',{tool:'weed'},NOW).ok,false);
+});
+test('primeira compra de adubo libera ferramenta e cada compra adiciona só uma unidade',()=>{
+ const s=newGame(NOW),r=action(s,'buyFertilizer',{},NOW);assert.equal(r.ok,true);assert.equal(r.state.tools.fertilize,true);assert.equal(r.state.supplies.fertilizer,1);assert.equal(r.state.coins,s.coins-15);assert.equal(s.supplies.fertilizer,0);
+});
+test('save anterior conserva estoque, saldo, água e criações e recebe slots únicos',()=>{
+ const s=newGame(NOW);delete s.tools;s.supplies.fertilizer=3;s.coins=900;s.water={amount:17,nextAt:NOW+60000};s.pond={owned:true,stock:[{type:'fish',readyAt:NOW+60000,fedUntil:NOW+240000,pending:2},{type:'shrimp',readyAt:NOW+90000,fedUntil:NOW+360000,pending:1}]};
+ const migrated=decodeSave(JSON.stringify(s),NOW);assert.deepEqual(migrated.tools,{weed:false,spray:false,fertilize:true});assert.equal(migrated.coins,900);assert.deepEqual(migrated.water,s.water);assert.deepEqual(migrated.pond.stock.map(a=>a.slot),[0,1]);assert.equal(migrated.pond.stock[0].pending,2);assert.deepEqual(decodeSave(JSON.stringify(migrated),NOW),migrated);
+ for(const tools of [null,[],{weed:true},{weed:true,spray:'yes',fertilize:false}])assert.equal(decodeSave(JSON.stringify({...s,tools}),NOW),null);
 });

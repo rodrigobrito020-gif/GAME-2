@@ -12,7 +12,7 @@ test('fazenda inicial, ciclo de plantio, água, colheita e venda reais',async({p
   await page.locator('[data-tool="water"]').click(); await page.locator('[data-plot="2"]').click();
   expect((await saved(page)).plots[2].watered).toBe(true);
   await page.clock.runFor(23_000);
-  await page.locator('[data-tool="harvest"]').click(); await page.locator('[data-plot="2"]').click();
+  await page.locator('[data-tool="smart"]').click(); await page.locator('[data-plot="2"]').click();
   await expect(page.locator('#storage-count')).toHaveText('2');
   await page.locator('#open-storage').click(); await page.locator('[data-sell-all]').click();
   expect((await saved(page)).coins).toBe(160+15+25+34+25); expect((await saved(page)).quests).toHaveLength(3);
@@ -36,9 +36,9 @@ test('progresso offline: reload após avançar relógio preserva plantação e p
   await page.locator('[data-plot="2"]').click(); expect((await saved(page)).harvest.carrot).toBe(1);
 });
 test('teclado seleciona ferramentas e aciona canteiros com Enter',async({page})=>{
-  await page.keyboard.press('2'); await expect(page.locator('[data-tool="plant"]')).toHaveAttribute('aria-pressed','true');
+  await page.keyboard.press('1'); await expect(page.locator('[data-tool="smart"]')).toHaveAttribute('aria-pressed','true');
   await page.locator('[data-plot="2"]').focus(); await page.keyboard.press('Enter');await page.locator('[data-seed="turnip"]').press('Enter'); expect((await saved(page)).stats.planted).toBe(1);
-  await page.keyboard.press('3'); await page.keyboard.press('Enter'); expect((await saved(page)).plots[2].watered).toBe(true);
+  await page.keyboard.press('2'); await page.keyboard.press('Enter'); expect((await saved(page)).plots[2].watered).toBe(true);
 });
 test('save corrompido é preservado em backup e avisa o jogador',async({page})=>{
   await page.evaluate(key=>localStorage.setItem(key,'{quebrado'),key); await page.reload();
@@ -47,7 +47,7 @@ test('save corrompido é preservado em backup e avisa o jogador',async({page})=>
 test('nível 2 libera morangos depois de colher, sem recompra de desbloqueio',async({page})=>{
   for(const i of [2,6,8,9,10]) {await page.locator(`[data-plot="${i}"]`).click();await page.locator('[data-seed="turnip"]').click();}
   await page.locator('[data-tool="water"]').click(); for(const i of [2,6,8,9,10]) await page.locator(`[data-plot="${i}"]`).click();
-  await page.clock.runFor(31_000); await page.locator('[data-tool="harvest"]').click(); for(const i of [0,2,6,8,9,10]) await page.locator(`[data-plot="${i}"]`).click();
+  await page.clock.runFor(31_000); await page.locator('[data-tool="smart"]').click(); for(const i of [0,2,6,8,9,10]) await page.locator(`[data-plot="${i}"]`).click();
   await expect(page.locator('#level')).toHaveText('2'); await expect(page.locator('[data-seed="strawberry"]')).toBeEnabled();
   await page.locator('#open-shop').click(); await expect(page.locator('[data-buy="strawberry"]')).toBeEnabled();
 });

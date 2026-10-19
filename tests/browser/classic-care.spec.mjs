@@ -2,7 +2,9 @@ import {test,expect} from '@playwright/test';
 const key='game2-sitio-aurora-v1';
 const saved=p=>p.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
 test.beforeEach(async({page})=>{await page.clock.install({time:new Date('2026-10-19T15:00:00Z')});await page.goto('/?view=classic');});
+async function buyCare(page){await page.evaluate(k=>{const s=JSON.parse(localStorage.getItem(k));s.coins=500;localStorage.setItem(k,JSON.stringify(s));},key);await page.reload();await page.locator('#open-shop').click();await page.locator('[data-shop-tab="tools"]').click();for(const id of ['weed','spray'])await page.locator(`[data-buy-tool="${id}"]`).click();for(let i=0;i<3;i++)await page.locator('[data-buy-fertilizer]').click();await page.locator('#close-modal').click();}
 test('capinar e dedetizar melhoram saúde e dobram produto; não repetem recompensa',async({page})=>{
+ await buyCare(page);
   await page.locator('[data-plot="2"]').click();await page.locator('[data-seed="carrot"]').click();await page.locator('[data-tool="water"]').click();await page.locator('[data-plot="2"]').click();await page.clock.fastForward(21_000);
   await page.locator('[data-plot="2"]').hover();await expect(page.locator('.health-track span')).toHaveText('40/100');
   await page.locator('[data-tool="weed"]').click();await page.locator('[data-plot="2"]').click();
@@ -11,10 +13,11 @@ test('capinar e dedetizar melhoram saúde e dobram produto; não repetem recompe
   await page.locator('[data-plot="2"]').click();expect((await saved(page)).xp).toBe(2);
   await page.locator('[data-tool="water"]').click();await page.locator('[data-plot="2"]').click();
   await page.locator('[data-plot="2"]').hover();await expect(page.locator('.health-track span')).toHaveText('100/100');
-  await page.clock.fastForward(2500);await page.locator('[data-tool="harvest"]').click();await page.locator('[data-plot="2"]').click();
+  await page.clock.fastForward(2500);await page.locator('[data-tool="smart"]').click();await page.locator('[data-plot="2"]').click();
   expect((await saved(page)).harvest.carrot).toBe(2);
 });
 test('adubo usa estoque e tempo correto, compra repõe e recarga preserva',async({page})=>{
+ await buyCare(page);
   await page.locator('[data-plot="2"]').click();await page.locator('[data-seed="turnip"]').click();await page.locator('[data-tool="water"]').click();await page.locator('[data-plot="2"]').click();await page.locator('[data-tool="fertilize"]').click();await page.locator('[data-plot="2"]').click();
   await expect(page.locator('#fertilizer-count')).toHaveText('2');
   const s=await saved(page);expect(s.plots[2].readyAt-s.plots[2].growthStartedAt).toBe(16_500);
@@ -40,13 +43,14 @@ test('nome personalizado persiste, missões abrem e bolsa pode fechar e abrir',a
 });
 
 test('planta seca não cresce, nem após recarga; só começa ao regar e adubo não burla',async({page})=>{
+ await buyCare(page);
  await page.locator('[data-plot="2"]').click();await page.locator('[data-seed="carrot"]').click();
  await page.clock.fastForward(86400_000);await page.reload();
  await expect(page.locator('[data-plot="2"]')).toHaveClass(/dry/);
  await page.locator('[data-plot="2"]').hover();await expect(page.locator('#plot-tooltip')).toContainText('Crescimento pausado');
- await page.locator('[data-tool="harvest"]').click();await page.locator('[data-plot="2"]').click();expect((await saved(page)).harvest.carrot).toBe(0);
+ await page.locator('[data-tool="smart"]').click();await page.locator('[data-plot="2"]').click();expect((await saved(page)).harvest.carrot).toBe(0);
  await page.locator('[data-tool="fertilize"]').click();await page.locator('[data-plot="2"]').click();expect((await saved(page)).supplies.fertilizer).toBe(3);
  await page.locator('[data-tool="water"]').click();await page.locator('[data-plot="2"]').click();await expect(page.locator('[data-plot="2"]')).toHaveClass(/growing/);
  await page.clock.fastForward(23_000);await expect(page.locator('[data-plot="2"]')).toHaveClass(/ready/);
- await page.locator('[data-tool="harvest"]').click();await page.locator('[data-plot="2"]').click();expect((await saved(page)).harvest.carrot).toBe(1);
+ await page.locator('[data-tool="smart"]').click();await page.locator('[data-plot="2"]').click();expect((await saved(page)).harvest.carrot).toBe(1);
 });

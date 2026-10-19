@@ -6,7 +6,7 @@ const key='game2-sitio-aurora-v1';
 const saved=p=>p.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
 const canvas=p=>p.locator('#farm-canvas');
 async function finish(page){await expect.poll(()=>canvas(page).evaluate(c=>c.dataset.actionPhase==='idle'&&c.dataset.pending==='0'),{timeout:25000}).toBe(true);}
-async function perform(page,type,index,crop='turnip'){await page.locator(`[data-tool="${type}"]`).click();await page.locator(`[data-plot="${index}"]`).click();if(type==='plant')await page.locator(`[data-seed="${crop}"]`).click();await expect(canvas(page)).not.toHaveAttribute('data-pending','0');await finish(page);}
+async function perform(page,type,index,crop='turnip'){await page.locator(`[data-tool="${['plant','harvest'].includes(type)?'smart':type}"]`).click();await page.locator(`[data-plot="${index}"]`).click();if(type==='plant')await page.locator(`[data-seed="${crop}"]`).click();await expect(canvas(page)).not.toHaveAttribute('data-pending','0');await finish(page);}
 test('3D real: cesta, percurso e colheita somente no movimento, sem duplicar cliques',async({page})=>{
  const errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.isNavigationRequest())requests.push(r.url());});
  await page.goto('/');await expect(canvas(page)).toHaveAttribute('data-renderer','three');await expect(page.locator('[data-plot]')).toHaveCount(54);
@@ -18,17 +18,17 @@ test('3D real: cesta, percurso e colheita somente no movimento, sem duplicar cli
  await page.reload();await expect(page.locator('#coins')).toHaveText('225');expect(errors).toEqual([]);expect(requests).toEqual([]);
 });
 test('3D: semear, regador, crescimento offline, capina, pulverizador, adubo e colheita',async({page})=>{
- test.setTimeout(120000);await page.clock.install({time:new Date('2026-10-19T15:00:00Z')});await page.goto('/');
+ test.setTimeout(150000);await page.clock.install({time:new Date('2026-10-19T15:00:00Z')});await page.goto('/');await page.locator('#open-shop').click();await page.locator('[data-shop-tab="tools"]').click();await page.locator('[data-buy-tool="weed"]').click();await page.locator('[data-buy-tool="spray"]').click();await page.locator('[data-buy-fertilizer]').click();await page.locator('#close-modal').click();
  await perform(page,'plant',2,'carrot');expect((await saved(page)).plots[2].crop).toBe('carrot');
  await page.clock.fastForward(86400_000);await page.reload();await expect(page.locator('[data-plot="2"]')).toHaveClass(/dry/);
- await page.locator('[data-tool="harvest"]').click();await page.locator('[data-plot="2"]').click();await expect(canvas(page)).toHaveAttribute('data-completed','0');expect((await saved(page)).harvest.carrot).toBe(0);
+ await page.locator('[data-tool="smart"]').click();await page.locator('[data-plot="2"]').click();await expect(canvas(page)).toHaveAttribute('data-completed','0');expect((await saved(page)).harvest.carrot).toBe(0);
  await perform(page,'water',2);expect((await saved(page)).plots[2].watered).toBe(true);await expect(canvas(page)).toHaveAttribute('data-last-action','water');
- await perform(page,'fertilize',2);expect((await saved(page)).supplies.fertilizer).toBe(2);
+ await perform(page,'fertilize',2);expect((await saved(page)).supplies.fertilizer).toBe(0);
  await page.clock.fastForward(21000);await perform(page,'weed',2);await perform(page,'spray',2);await perform(page,'harvest',2);expect((await saved(page)).harvest.carrot).toBe(2);
  await page.reload();expect((await saved(page)).harvest.carrot).toBe(2);
 });
 test('3D: fila de tarefas mantém ferramenta original e não repete recompensas',async({page})=>{
- await page.goto('/');await page.locator('[data-tool="plant"]').click();await page.locator('[data-plot="2"]').click();await page.locator('[data-seed="turnip"]').click();await page.locator('[data-plot="6"]').click();await page.locator('[data-seed="turnip"]').click();await page.locator('[data-tool="water"]').click();
+ await page.goto('/');await page.locator('[data-tool="smart"]').click();await page.locator('[data-plot="2"]').click();await page.locator('[data-seed="turnip"]').click();await page.locator('[data-plot="6"]').click();await page.locator('[data-seed="turnip"]').click();await page.locator('[data-tool="water"]').click();
  await finish(page);const s=await saved(page);expect(s.stats.planted).toBe(2);expect(s.seeds.turnip).toBe(4);expect(s.plots[2].watered).toBe(false);expect(s.plots[6].watered).toBe(false);await expect(canvas(page)).toHaveAttribute('data-completed','2');await expect(canvas(page)).toHaveAttribute('data-held-tool','water');
 });
 test('3D: zoom por botões e scroll mantém canteiros clicáveis e expansão',async({page})=>{
