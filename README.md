@@ -1,6 +1,10 @@
-# GAME-2 — Colheita Feliz 3D, versão 0.5.1
+# GAME-2 — Colheita Feliz 3D, versão 0.6.0
 
 Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
+
+![Fazenda ampliada, cartões simplificados, lago com peixes e gaiolas, galinheiro, curral e estábulo](docs/images/fazenda-v06.png)
+
+Exemplo da versão 0.6.0 com lago, peixes, gaiolas, galinha e vaca já comprados. Cada fazenda começa com os recursos iniciais descritos abaixo.
 
 ## Jogar
 
@@ -18,6 +22,16 @@ Selecione uma ferramenta e clique no canteiro. O fazendeiro caminha pelas passag
 A alteração acontece durante a animação, após chegar ao canteiro. É possível selecionar vários canteiros para formar uma fila de até 12 tarefas. Cada tarefa conserva a ferramenta e a semente escolhidas no clique; cliques repetidos na mesma tarefa não duplicam produtos. As condições são verificadas novamente quando a ação acontece. Uma tarefa ainda não aplicada não gasta sementes ou adubo e não é salva ao fechar a aba.
 
 Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 7** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
+
+## Cartões, lago e fazenda maior — versão 0.6.0
+
+- Cartões de sementes, loja e produtos simplificados: frutas maiores, fundos claros, azul do céu, verde e amarelo milho. Quantidade, seleção e bloqueios por nível continuam visíveis, inclusive no celular.
+- Fazenda 3D ampliada, com caminhos pelas quatro margens do lago e áreas separadas para galinhas, vacas e cavalos. Galinhas compradas aparecem no galinheiro e vacas no curral. O estábulo tem cavalos decorativos; compra, montaria e produção de cavalos ainda não foram implementadas.
+- A câmera abre um enquadramento maior e acompanha o personagem quando ele chega perto das bordas. Zoom, WASD, setas, clique e tarefas nos canteiros continuam disponíveis.
+- Compre o **lago por 240 moedas no nível 2**, em **Loja → Lago** ou no botão lateral **Lago**. O espaço e o caminho já aparecem no mapa; comprar libera a criação e o pequeno deque.
+- Uma criação de **peixes custa 60 moedas**, produz um peixe por minuto e vende cada peixe por 24 moedas. Até **3 gaiolas de camarões**, liberadas no nível 3, custam 120 moedas cada, produzem um camarão a cada 90 segundos e vendem cada um por 38 moedas.
+- A primeira ração cobre 4 ciclos. Alimentar custa 6 moedas para os peixes e 10 para cada gaiola. Sem alimento, a produção pausa, inclusive offline. A janela do lago mostra o tempo e permite alimentar/coletar; colete e venda no armazém. Não consome a reserva do regador.
+- Saves anteriores preservam seus itens, nome e personagem e recebem apenas os novos estoques vazios. Preços e tempos ainda são provisórios.
 
 ## Água, personagem e expansão — versão 0.5.1
 

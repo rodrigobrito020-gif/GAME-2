@@ -27,8 +27,11 @@ export function waterStatus(state, now = Date.now()) {
   const nextAt = amount === WATER_CAPACITY ? null : water.nextAt + recovered * WATER_REFILL_MS;
   return { amount, nextAt, remaining: nextAt === null ? 0 : Math.max(0, nextAt - now) };
 }
-export const PRODUCTS = Object.freeze({ egg: { name:'Ovo', plural:'Ovos', sell:16 }, milk: { name:'Leite', plural:'Leite', sell:40 } });
+export const PRODUCTS = Object.freeze({ egg: { name:'Ovo', plural:'Ovos', sell:16 }, milk: { name:'Leite', plural:'Leite', sell:40 }, fish: { name:'Peixe', plural:'Peixes', sell:24 }, shrimp: { name:'Camarão', plural:'Camarões', sell:38 } });
 export const ANIMALS = Object.freeze({ chicken: { name:'Galinha', cost:60, feedCost:5, duration:60_000, product:'egg', xp:5, level:1 }, cow: { name:'Vaca', cost:180, feedCost:12, duration:120_000, product:'milk', xp:10, level:2 } });
+export const POND = Object.freeze({ cost:240, level:2, fishLimit:1, cageLimit:3 });
+export const AQUACULTURE = Object.freeze({ fish: { name:'Criação de peixes', cost:60, feedCost:6, duration:60_000, product:'fish', xp:6, level:2 }, shrimp: { name:'Gaiola de camarões', cost:120, feedCost:10, duration:90_000, product:'shrimp', xp:9, level:3 } });
+const emptyProducts=()=>Object.fromEntries(Object.keys(PRODUCTS).map(id=>[id,0]));
 const ids = Object.keys(CROPS);
 const number = (value, max = 1e9) => Number.isFinite(value) && value >= 0 && value <= max;
 export const levelInfo = xp => {
@@ -40,7 +43,7 @@ export function newGame(now = Date.now()) {
   const plots = Array.from({ length: 16 }, (_, i) => ({ unlocked: Math.floor(i / 4) < 3 && i % 4 < 3, crop: null, plantedAt: 0, readyAt: 0, watered: false }));
   Object.assign(plots[0], { crop: 'turnip', plantedAt: now - 30_000, growthStartedAt: now - 30_000, readyAt: now, watered: true, weeded: true, sprayed: false });
   Object.assign(plots[1], { crop: 'turnip', plantedAt: now - 8000, growthStartedAt: now - 8000, readyAt: now + 22_000, watered: true });
-  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', farmer: 'male', water: { amount: WATER_CAPACITY, nextAt: null }, supplies: { fertilizer: 3 }, animals:[], products:{egg:0,milk:0}, seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
+  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', farmer: 'male', water: { amount: WATER_CAPACITY, nextAt: null }, supplies: { fertilizer: 3 }, animals:[], pond:{owned:false,stock:[]}, products:emptyProducts(), seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
 }
 export function decodeSave(raw, now = Date.now()) {
   try {
@@ -66,11 +69,16 @@ export function decodeSave(raw, now = Date.now()) {
       if (s.water.amount === WATER_CAPACITY ? s.water.nextAt !== null : !number(s.water.nextAt, 9e15)) return null;
     }
     const { amount, nextAt } = waterStatus(s, now);
-    const animals=s.animals||[], products=s.products||{egg:0,milk:0};
+    const animals=s.animals||[], products=s.products||emptyProducts(), pond=s.pond===undefined?{owned:false,stock:[]}:s.pond;
     if(!Array.isArray(animals)||animals.length>6)return null;
     for(const a of animals)if(!a||!Object.hasOwn(ANIMALS,a.type)||!number(a.readyAt,9e15)||!number(a.fedUntil,9e15)||!Number.isInteger(a.pending)||!number(a.pending,1e6))return null;
+    // Saves anteriores mantêm seus produtos e recebem os novos estoques vazios.
+    for(const k of ['fish','shrimp'])if(products[k]===undefined)products[k]=0;
     for(const k of Object.keys(PRODUCTS))if(!Number.isInteger(products[k])||!number(products[k],1e6))return null;
-    return { ...s, farmer: s.farmer || 'male', water: { amount, nextAt }, farmName: s.farmName || 'Minha fazenda', supplies: s.supplies || { fertilizer: 3 }, animals,products,updatedAt: now };
+    if(!pond||typeof pond.owned!=='boolean'||!Array.isArray(pond.stock)||pond.stock.length>4||(!pond.owned&&pond.stock.length))return null;
+    for(const a of pond.stock)if(!a||!Object.hasOwn(AQUACULTURE,a.type)||!number(a.readyAt,9e15)||!number(a.fedUntil,9e15)||!Number.isInteger(a.pending)||!number(a.pending,1e6))return null;
+    if(pond.stock.filter(a=>a.type==='fish').length>POND.fishLimit||pond.stock.filter(a=>a.type==='shrimp').length>POND.cageLimit)return null;
+    return { ...s, farmer: s.farmer || 'male', water: { amount, nextAt }, farmName: s.farmName || 'Minha fazenda', supplies: s.supplies || { fertilizer: 3 }, animals,pond,products,updatedAt: now };
   } catch { return null; }
 }
 export function plotStatus(plot, now = Date.now()) {
@@ -97,7 +105,13 @@ export function plotCare(plot, now = Date.now()) {
 }
 export function expansionPrice(state) { return 100 + Math.max(0, state.plots.filter(p => p.unlocked).length - 9) * 75; }
 export function animalProduction(animal, now=Date.now()) {
-  const def=ANIMALS[animal.type], until=Math.min(now,animal.fedUntil);
+  return productionStatus(animal,ANIMALS[animal.type],now);
+}
+export function aquaticProduction(stock,now=Date.now()) {
+  return productionStatus(stock,AQUACULTURE[stock.type],now);
+}
+function productionStatus(animal,def,now) {
+  const until=Math.min(now,animal.fedUntil);
   const cycles=until>=animal.readyAt?Math.floor((until-animal.readyAt)/def.duration)+1:0;
   return { cycles, amount:animal.pending+cycles, hungry:now>=animal.fedUntil, remaining:Math.max(0,animal.readyAt+cycles*def.duration-until) };
 }
@@ -109,7 +123,39 @@ export function action(state, type, payload = {}, now = Date.now()) {
   const crop = Object.hasOwn(CROPS, payload.crop) ? CROPS[payload.crop] : null;
   const plot = Number.isInteger(payload.index) && payload.index >= 0 && payload.index < next.plots.length ? next.plots[payload.index] : null;
   let message = '', earned = 0;
-  if (type === 'buyAnimal') {
+  if(type==='buyPond') {
+    if(next.pond?.owned)return fail('O lago já faz parte da sua fazenda.');
+    if(levelInfo(next.xp).level<POND.level)return fail(`Lago disponível no nível ${POND.level}.`);
+    if(next.coins<POND.cost)return fail(`Você precisa de ${POND.cost} moedas para comprar o lago.`);
+    next.coins-=POND.cost;next.pond={owned:true,stock:[]};
+    message='Lago comprado! Agora você pode criar peixes e instalar gaiolas de camarões.';
+  } else if(type==='buyAquatic') {
+    const def=Object.hasOwn(AQUACULTURE,payload.aquatic)?AQUACULTURE[payload.aquatic]:null;
+    if(!def)return fail('Escolha peixes ou uma gaiola de camarões.');
+    if(!next.pond?.owned)return fail('Compre o lago antes de começar sua criação.');
+    if(levelInfo(next.xp).level<def.level)return fail(`Disponível no nível ${def.level}.`);
+    const limit=payload.aquatic==='fish'?POND.fishLimit:POND.cageLimit;
+    if(next.pond.stock.filter(a=>a.type===payload.aquatic).length>=limit)return fail(payload.aquatic==='fish'?'Seu lago já tem uma criação de peixes.':'Seu lago comporta no máximo 3 gaiolas.');
+    if(next.coins<def.cost)return fail('Você precisa de mais moedas.');
+    next.coins-=def.cost;next.pond.stock.push({type:payload.aquatic,readyAt:now+def.duration,fedUntil:now+4*def.duration,pending:0});
+    message=`${def.name} no lago! Ração para 4 ciclos incluída.`;
+  } else if(type==='feedAquatic'||type==='collectAquatic') {
+    const a=Number.isInteger(payload.stockIndex)?next.pond?.stock?.[payload.stockIndex]:null;
+    if(!next.pond?.owned||!a)return fail('Escolha uma criação do seu lago.');
+    const def=AQUACULTURE[a.type],production=aquaticProduction(a,now);
+    if(type==='collectAquatic') {
+      if(!production.amount)return fail('Ainda não há produção para coletar.');
+      next.products={...emptyProducts(),...next.products};next.products[def.product]+=production.amount;
+      a.pending=0;a.readyAt+=production.cycles*def.duration;next.xp+=production.amount*def.xp;
+      message=`+${production.amount} ${PRODUCTS[def.product].plural.toLowerCase()} no armazém.`;
+    } else {
+      if(a.fedUntil-now>=def.duration*4)return fail('Essa criação já tem ração suficiente.');
+      if(next.coins<def.feedCost)return fail('Você precisa de mais moedas para comprar ração.');
+      next.coins-=def.feedCost;a.pending=production.amount;
+      a.readyAt=now+production.remaining;a.fedUntil=Math.max(now,a.fedUntil)+def.duration*4;
+      message=`${def.name} alimentada. A produção continua!`;
+    }
+  } else if (type === 'buyAnimal') {
     const def=Object.hasOwn(ANIMALS,payload.animal)?ANIMALS[payload.animal]:null;
     if(!def)return fail('Escolha um animal da loja.');
     if(levelInfo(next.xp).level<def.level)return fail(`Disponível no nível ${def.level}.`);
@@ -124,7 +170,7 @@ export function action(state, type, payload = {}, now = Date.now()) {
     const def=ANIMALS[a.type], production=animalProduction(a,now);
     if(type==='collectAnimal') {
       if(!production.amount)return fail('Ainda não há produtos para coletar.');
-      next.products||={egg:0,milk:0};next.products[def.product]+=production.amount;
+      next.products={...emptyProducts(),...next.products};next.products[def.product]+=production.amount;
       a.pending=0;a.readyAt+=production.cycles*def.duration;next.xp+=production.amount*def.xp;
       message=`+${production.amount} ${(production.amount===1?PRODUCTS[def.product].name:PRODUCTS[def.product].plural).toLowerCase()} no armazém.`;
     } else {
@@ -194,7 +240,7 @@ export function action(state, type, payload = {}, now = Date.now()) {
     if (type === 'sell' && !Object.hasOwn(goods,payload.crop)) return fail('Escolha uma colheita para vender.');
     const selected = type === 'sellAll' ? Object.keys(goods) : [payload.crop];
     for (const id of selected) {
-      const collection=Object.hasOwn(PRODUCTS,id)?(next.products||={egg:0,milk:0}):next.harvest;
+      const collection=Object.hasOwn(PRODUCTS,id)?(next.products={...emptyProducts(),...next.products}):next.harvest;
       const qty = type === 'sellAll' ? collection[id] : (payload.qty ?? 1);
       if (!Number.isInteger(qty) || qty < 0 || qty > collection[id]) return fail('Essa quantidade não está no armazém.');
       earned += qty * goods[id].sell; collection[id] -= qty; next.stats.sold += qty;

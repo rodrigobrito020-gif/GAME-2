@@ -1,6 +1,7 @@
-import { CROPS, ANIMALS, animalProduction, expansionPrice, plotStatus, plotCare, progress, growthRemaining } from './game.js';
+import { CROPS, ANIMALS, POND, animalProduction, aquaticProduction, expansionPrice, plotStatus, plotCare, progress, growthRemaining } from './game.js';
 
 export const icons = {
+  pond: '<path d="M3 21c0-6 6-11 13-11s15 5 15 11-8 9-15 9S3 27 3 21Z"/><path d="m9 20 7-4 7 4-7 4Zm14 0 4-4v8Zm-14-7V3m-4 8V6m5 18 3 1m8 0 3-1"/>',
   hand: '<path d="m13 21-5-5c-2-2 0-4 2-2l2 1V5a2 2 0 0 1 4 0v6-8a2 2 0 0 1 4 0v8-6a2 2 0 0 1 4 0v7-4a2 2 0 0 1 4 0v9c0 6-3 10-8 10-3 0-5-2-7-6Z"/>',
   sprout: '<path d="M16 28V14M16 19C4 21 3 9 4 7c8-1 13 4 12 12Zm0-5C15 5 22 3 29 3c0 9-6 13-13 11Z"/>',
   water: '<path d="M4 14h15v13H4zM19 17l5-5 4 3-6 9h-3M7 13V8c0-7 10-7 10 0v5M27 18l3 3m-5 0 3 4"/>',
@@ -17,6 +18,8 @@ export const icons = {
 export function icon(name, cls = '') { return `<svg class="icon ${cls}" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.sprout}</svg>`; }
 
 export function cropArt(id) {
+  if(id==='fish')return '<path d="M10 32C19 13 42 15 51 29l10-9v24l-10-9C40 49 20 50 10 32Z" fill="#2eadd7" stroke="#1479ae" stroke-width="2"/><path d="m27 21 9-10 5 12m-14 20 8 9 5-12" fill="#ffc64a"/><circle cx="20" cy="29" r="3" fill="#123f60"/><path d="M29 26q-5 8 0 15" fill="none" stroke="#bceaff" stroke-width="3" stroke-linecap="round"/>';
+  if(id==='shrimp')return '<path d="M42 13C19 6 7 20 12 37c5 16 24 21 39 11l-7-8c-9 6-19 3-21-5-2-10 7-15 16-11Z" fill="#fa9563" stroke="#c9663a" stroke-width="2"/><path d="m49 45 12-8-3 16-13-3m-28-30 10 5m-14 5 10 2m-7 9 10-3m-2 11 8-7m5 12 2-10" fill="none" stroke="#c9663a" stroke-width="2"/><path d="M37 17Q51 1 61 10M37 19Q56 9 62 19" fill="none" stroke="#ce6e39" stroke-width="2" stroke-linecap="round"/><circle cx="36" cy="15" r="2.5" fill="#603721"/>';
   if(id==='egg')return '<path d="M12 40C12 24 24 7 32 7s22 17 22 33c0 25-42 25-42 0Z" fill="#fff1c6" stroke="#c7b184" stroke-width="2"/><path d="M23 23q-8 15-3 21" fill="none" stroke="#fffdf1" stroke-width="5" stroke-linecap="round"/>';
   if(id==='milk')return '<path d="M21 9h22v9l9 9v31H12V27l9-9Z" fill="#eeeccc" stroke="#b8bda4" stroke-width="2"/><path d="M21 5h22v7H21Z" fill="#8fbcc4"/><path d="M13 30h38v18H13Z" fill="#91bdc4"/><text x="32" y="42" text-anchor="middle" font-size="9" fill="white">LEITE</text>';
 
@@ -92,6 +95,12 @@ export function animalArt(type) {
   return '<path d="M11 41V65m15-19v20m24-20 2 21m12-28 2 24" stroke="#6c6151" stroke-width="6"/><ellipse cx="35" cy="32" rx="32" ry="21" fill="#fff9e5" stroke="#aaa086" stroke-width="2"/><path d="M13 15q22-8 17 11-6 18-21 8m30-21q17 1 17 15-15 10-16-15" fill="#625b50"/><path d="M57 18 64 4l6 16m-5-9 12-7 9 24-12 23-18-5Z" fill="#fff5dd" stroke="#a69a7b" stroke-width="2"/><ellipse cx="67" cy="40" rx="14" ry="9" fill="#e9bbab"/><circle cx="65" cy="25" r="2" fill="#534832"/><path d="m58 10-6-9m22 7 4-9" stroke="#b69f70" stroke-width="4" stroke-linecap="round"/>';
 }
 export function animalIcon(type) {return `<svg class="animal-icon" viewBox="-5 -10 100 90" aria-hidden="true">${animalArt(type)}</svg>`;}
+export function pondMarkup(state,now=Date.now()) {
+  const pond=state.pond||{owned:false,stock:[]},ready=pond.stock.reduce((n,a)=>n+aquaticProduction(a,now).amount,0);
+  const fish=pond.stock.some(a=>a.type==='fish')?'<g transform="translate(110 145) scale(.6)"><g class="pond-fish">'+cropArt('fish')+'</g></g>':'';
+  const cages=pond.stock.filter(a=>a.type==='shrimp').map((a,i)=>`<g transform="translate(${190+i*29} ${166+i*5})"><rect width="26" height="20" rx="3" fill="#86b8c3" stroke="#496d79" stroke-width="2"/><path d="M7 0v20m7-20v20m7-20v20M0 7h26M0 14h26" stroke="#e4f5f4"/><circle r="4" fill="#ffc94b"/></g>`).join('');
+  return `${fish}${cages}<g role="button" tabindex="0" data-building="pond" class="building pond-sign" aria-label="${pond.owned?'Cuidar do lago':'Comprar lago'}" transform="translate(165 255)"><rect x="-90" y="-20" width="180" height="43" rx="8" fill="#f0faff" stroke="#3899c7" stroke-width="3"/><text text-anchor="middle" y="-2" font-family="Arial" font-weight="bold" font-size="14" fill="#24577b">${pond.owned?'SEU LAGO':'LAGO À VENDA'}</text><text text-anchor="middle" y="15" font-family="Arial" font-size="11" fill="#376e87">${pond.owned?ready?ready+' produtos prontos':'Peixes e camarões':POND.cost+' moedas · Nível '+POND.level}</text></g>`;
+}
 export function animalMarkup(state,now=Date.now()) {
   const animals=state.animals||[];
   if(!animals.length)return '<g role="button" tabindex="0" data-building="animals" class="building" aria-label="Cercado vazio, comprar animais" transform="translate(1090 438)"><path d="M0 0v63" stroke="#986f35" stroke-width="7"/><rect x="-82" y="-20" width="164" height="47" rx="5" fill="#efcf8c" stroke="#a0783c" stroke-width="3"/><text text-anchor="middle" y="0" fill="#8b682d" font-size="13" font-family="Arial">Compre animais</text><text text-anchor="middle" y="17" fill="#a18142" font-size="10" font-family="Arial">na loja da fazenda</text></g>';

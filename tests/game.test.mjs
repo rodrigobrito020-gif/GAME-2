@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CROPS, QUESTS, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
+import { CROPS, QUESTS, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, POND, AQUACULTURE, PRODUCTS, aquaticProduction, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
 const NOW=1_800_000_000_000;
 test('novo sítio começa com nove canteiros, sementes e uma colheita pronta',()=>{
   const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,16);
@@ -233,4 +233,55 @@ test('fazendeiro e fazendeira persistem sem mudar itens, progresso ou reserva de
 test('aparência inválida não altera o personagem nem os itens',()=>{
  const s=newGame(NOW);assert.equal(action(s,'rename',{name:'Teste',farmer:'unknown'},NOW).ok,false);assert.equal(s.farmer,'male');
  s.farmer='unknown';assert.equal(decodeSave(JSON.stringify(s),NOW),null);
+});
+
+test('lago exige nível e moedas, não se compra duas vezes e preserva a água',()=>{
+ const s=newGame(NOW);s.coins=1000;
+ assert.equal(action(s,'buyPond',{},NOW).ok,false);
+ s.xp=30;s.coins=POND.cost-1;assert.equal(action(s,'buyPond',{},NOW).ok,false);
+ s.coins=1000;const before=structuredClone(s),bought=action(s,'buyPond',{},NOW);
+ assert.equal(bought.ok,true);assert.equal(bought.state.coins,1000-POND.cost);assert.deepEqual(bought.state.pond,{owned:true,stock:[]});assert.deepEqual(bought.state.water,s.water);assert.deepEqual(s,before);
+ assert.equal(action(bought.state,'buyPond',{},NOW).ok,false);
+});
+test('criação aquática exige lago, nível, preço e respeita um cardume e três gaiolas',()=>{
+ let s=newGame(NOW);s.coins=10000;s.xp=30;
+ assert.equal(action(s,'buyAquatic',{aquatic:'fish'},NOW).ok,false);
+ s=action(s,'buyPond',{},NOW).state;
+ assert.equal(action(s,'buyAquatic',{aquatic:'shrimp'},NOW).ok,false);
+ assert.equal(action(s,'buyAquatic',{aquatic:'__proto__'},NOW).ok,false);
+ s=action(s,'buyAquatic',{aquatic:'fish'},NOW).state;
+ assert.equal(action(s,'buyAquatic',{aquatic:'fish'},NOW).ok,false);
+ s.xp=80;for(let i=0;i<3;i++)s=action(s,'buyAquatic',{aquatic:'shrimp'},NOW).state;
+ assert.equal(s.pond.stock.length,4);assert.equal(s.coins,10000-POND.cost-AQUACULTURE.fish.cost-3*AQUACULTURE.shrimp.cost);
+ assert.equal(action(s,'buyAquatic',{aquatic:'shrimp'},NOW).ok,false);
+ const poor=structuredClone(s);poor.pond.stock=[];poor.coins=0;
+ assert.equal(action(poor,'buyAquatic',{aquatic:'fish'},NOW).ok,false);
+ for(const stockIndex of [-1,4,0.5,'0'])assert.equal(action(s,'collectAquatic',{stockIndex},NOW).ok,false);
+});
+for(const type of ['fish','shrimp'])test(`${type}: produção offline pausa sem ração, coleta única, alimentação retoma e venda paga o valor correto`,()=>{
+ let s=newGame(NOW);s.coins=2000;s.xp=80;
+ s=action(s,'buyPond',{},NOW).state;s=action(s,'buyAquatic',{aquatic:type},NOW).state;
+ const def=AQUACULTURE[type],before=structuredClone(s),duration=def.duration;
+ assert.equal(action(s,'collectAquatic',{stockIndex:0},NOW+duration-1).ok,false);
+ assert.deepEqual(s,before);assert.equal(aquaticProduction(s.pond.stock[0],NOW+duration).amount,1);
+ s=action(s,'collectAquatic',{stockIndex:0},NOW+duration).state;
+ assert.equal(s.products[type],1);assert.equal(s.xp,80+def.xp);
+ assert.equal(action(s,'collectAquatic',{stockIndex:0},NOW+duration).ok,false);
+ const late=NOW+86400000;assert.deepEqual(aquaticProduction(s.pond.stock[0],late),{cycles:3,amount:3,hungry:true,remaining:duration});
+ s=decodeSave(JSON.stringify(s),late);assert.equal(s.products[type],1);
+ s=action(s,'feedAquatic',{stockIndex:0},late).state;
+ assert.equal(aquaticProduction(s.pond.stock[0],late).amount,3);
+ s=action(s,'collectAquatic',{stockIndex:0},late).state;assert.equal(s.products[type],4);
+ assert.equal(aquaticProduction(s.pond.stock[0],late+duration-1).amount,0);assert.equal(aquaticProduction(s.pond.stock[0],late+duration).amount,1);
+ const coins=s.coins;s=action(s,'sellAll',{},late).state;
+ assert.equal(s.products[type],0);assert.equal(s.coins,coins+4*PRODUCTS[type].sell+25);
+ assert.equal(action(s,'sellAll',{},late).ok,false);
+});
+test('saves antigos recebem lago fechado e estoques de peixes vazios; saves inválidos são rejeitados',()=>{
+ const old=newGame(NOW);delete old.pond;delete old.products.fish;delete old.products.shrimp;old.products.egg=3;old.coins=777;
+ const s=decodeSave(JSON.stringify(old),NOW);assert.equal(s.coins,777);assert.equal(s.products.egg,3);assert.equal(s.products.fish,0);assert.deepEqual(s.pond,{owned:false,stock:[]});
+ const fish={type:'fish',readyAt:NOW+60000,fedUntil:NOW+240000,pending:0};
+ for(const pond of [null,{owned:1,stock:[]},{owned:false,stock:[fish]},{owned:true,stock:[fish,fish]},{owned:true,stock:[{...fish,pending:-1}]},{owned:true,stock:[{...fish,type:'__proto__'}]}]){
+  assert.equal(decodeSave(JSON.stringify({...s,pond}),NOW),null);
+ }
 });

@@ -77,3 +77,114 @@
 .profile-error[hidden]{display:none}
 #farm-name-input[aria-invalid=true]{border-color:#b95c3b}
 @media(max-width:650px){.profile-edit{font-size:7px;margin-top:3px;line-height:1.3}.profile-instructions{font-size:11px}}
+
+/* Cartões de cultivos: céu azul, folhas verdes e amarelo milho. */
+.side-actions>button { height:59px; }
+#open-pond { background:#d9f3ff; border-color:#4597bc; color:#246182; }
+#open-pond i { background:#fff0a8; border-color:#d6a235; color:#6d5016; }
+.pond-offer { text-align:center; background:#f1faff; border:1px solid #b6d9eb; border-radius:14px; padding:22px; }
+.pond-illustration { display:grid; place-items:center; background:#d4f0ff; border-radius:50%; width:100px; height:100px; margin:auto; color:#2884b0; }
+.pond-illustration .icon { width:72px; height:72px; }
+.pond-offer h3 { color:#24577b; font-size:22px; margin:16px 0 10px; }
+.pond-offer p { color:#486b80; line-height:1.7; max-width:420px; margin:0 auto 18px; }
+.aquatic-shop { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.pond-stock { display:grid; gap:10px; margin-bottom:20px; }
+.pond-stock-card { display:flex; align-items:center; gap:16px; background:#fff; border:1px solid #c1dce9; padding:14px; border-radius:12px; }
+.pond-stock-card>.crop-icon { width:56px; height:56px; flex-shrink:0; padding:6px; border-radius:50%; background:var(--fruit-tint); }
+.pond-stock-card>div { min-width:0; flex:1; }
+.pond-stock-card h3 { margin:0; color:#24577b; font-size:15px; }
+.pond-status { color:#486b80; line-height:1.6; font-size:12px; }
+.pond-buttons { display:flex; flex-wrap:wrap; gap:8px; }
+.pond-buttons button { border:1px solid #86b2cc; background:#edf8ff; color:#24577b; padding:9px 11px; border-radius:8px; font-size:12px; }
+.pond-buttons [data-collect-aquatic] { background:#e2f5d3; border-color:#87b76c; color:#366626; }
+.pond-fish { animation:pond-swim 5s ease-in-out infinite alternate; }
+@keyframes pond-swim { to { transform:translate(45px,-8px) rotate(8deg); } }
+@media(prefers-reduced-motion:reduce) { .pond-fish { animation:none; } }
+.produce-card[data-produce=fish] { --fruit-tint:#dff3ff; --fruit-accent:#267aa5; }
+.produce-card[data-produce=shrimp] { --fruit-tint:#ffebde; --fruit-accent:#b85730; }
+@media(max-width:650px) { .side-actions>button { height:49px; } }
+.produce-card { --fruit-tint:#edf7df; --fruit-accent:#43852b; }
+.produce-card[data-produce=carrot] { --fruit-tint:#fff0d9; --fruit-accent:#b95717; }
+.produce-card[data-produce=wheat],.produce-card[data-produce=corn] { --fruit-tint:#fff4c7; --fruit-accent:#946513; }
+.produce-card[data-produce=strawberry] { --fruit-tint:#ffe7e9; --fruit-accent:#bd384b; }
+.produce-card[data-produce=pumpkin] { --fruit-tint:#ffead8; --fruit-accent:#ab511b; }
+.produce-card[data-produce=tomato] { --fruit-tint:#ffe9df; --fruit-accent:#b54327; }
+.produce-card[data-produce=watermelon] { --fruit-tint:#e4f5d7; --fruit-accent:#39802c; }
+.seed-section { background:#f4fbff; border:1px solid #99ccea; border-radius:14px; box-shadow:none; }
+.seed-heading { background:#e3f3ff; border-bottom:1px solid #c8e4f4; padding:12px 16px; gap:14px; }
+.seed-heading h2 { color:#20547b; font-size:13px; }
+.seed-note { color:#4c6a7e; font-size:11px; }
+.seed-heading>button { color:#365c77; }
+.seed-tray { padding:12px; gap:8px; }
+.seed-card,.seed-card.selected { padding:14px 6px 10px; min-height:128px; border:1px solid #d2e4ec; border-radius:12px; background:#fff; box-shadow:none; flex-direction:column; text-align:center; gap:7px; opacity:1; }
+.seed-card:hover:not(:disabled) { background:#f5fbff; border-color:#68b1dc; filter:none; }
+.seed-card.selected { background:#f1fae9; border-color:#4d9633; box-shadow:inset 0 0 0 1px #4d9633; }
+.seed-art { display:grid; place-items:center; width:56px; height:56px; border-radius:50%; background:var(--fruit-tint); }
+.seed-art .crop-icon { width:43px; height:43px; filter:none; }
+.seed-info b { display:block; color:#254c63; font-size:12px; }
+.seed-info small { color:#5a7180; font-size:10px; margin-top:5px; white-space:normal; }
+.seed-stock { top:7px; right:7px; bottom:auto; margin:0; padding:3px 5px; font-size:10px; font-weight:bold; color:#31566e; background:#edf5fa; border-radius:6px; line-height:1; }
+.seed-stock .icon { width:12px; height:12px; display:block; }
+.seed-card .selected-dot { top:7px; left:7px; right:auto; width:16px; height:16px; display:grid; place-items:center; background:#39872f; color:white; font-size:10px; border-radius:50%; }
+.seed-card.locked { background:#f4f7f8; border-color:#dde5e8; filter:none; opacity:1; }
+.seed-card.locked .crop-icon { opacity:.68; filter:saturate(.75); }
+.seed-card.locked .seed-info b { color:#536976; }
+.shop-card.produce-card { background:#fff; border:1px solid #cbdfe9; border-radius:14px; padding:14px; }
+.produce-card .shop-crop { height:105px; border:0; background:none; position:relative; isolation:isolate; }
+.produce-card .shop-crop::before { content:""; position:absolute; width:90px; height:90px; border-radius:50%; background:var(--fruit-tint); z-index:-1; }
+.produce-card .shop-crop .crop-icon { width:67px; height:67px; }
+.produce-card .shop-crop>span { color:#355a72; background:#edf6fc; font-size:10px; border-radius:6px; top:0; right:0; }
+.shop-card.produce-card h3 { color:#254c63; font-size:17px; margin:12px 0 8px; }
+.shop-card.produce-card p { color:#506b7c; font-size:11px; line-height:1.6; }
+.shop-card.produce-card p b { color:#8b5c0b; font-weight:bold; }
+.shop-card.produce-card>small { color:#506b7c; font-size:11px; }
+.shop-card.produce-card button { background:#ffcf45; border:1px solid #d29a22; color:#59400b; text-shadow:none; border-radius:8px; padding:10px 7px; font-size:12px; }
+.shop-card.produce-card.locked .shop-crop { opacity:.75; filter:none; }
+.shop-card.produce-card.locked button { background:#edf2f5; color:#536976; border-color:#d2dfe5; opacity:1; }
+.storage-card.produce-card { background:#fff; border:1px solid #cbdfe9; border-radius:12px; padding:12px; gap:14px; }
+.storage-card.produce-card>.crop-icon { width:52px; height:52px; padding:6px; background:var(--fruit-tint); border-radius:50%; }
+.storage-card.produce-card h3 { color:#254c63; font-size:15px; }
+.storage-card.produce-card p { color:#506b7c; font-size:11px; }
+.storage-card.produce-card button { background:#e6f5df; color:#346525; border:1px solid #95bf7f; border-radius:8px; }
+@media(max-width:780px) {
+  .seed-heading { padding:10px 12px; gap:10px; }
+  .seed-heading h2 { font-size:12px; }
+  .seed-note { font-size:10px; }
+  .seed-tray { grid-template-columns:repeat(4,minmax(0,1fr)); padding:9px; gap:7px; }
+  .seed-card,.seed-card.selected { min-height:126px; padding:18px 4px 9px; }
+  .shop-card.produce-card { padding:12px; }
+}
+@media(max-width:480px) {
+  .side-actions>button,.has-3d .side-actions>button { height:44px; }
+  .zoom-controls { right:auto; left:50%; transform:translateX(-50%); bottom:74px; }
+  .has-3d .map-caption { bottom:112px; left:44%; max-width:68%; font-size:9px; }
+  .pond-stock-card { align-items:flex-start; gap:9px; padding:11px; }
+  .pond-stock-card>.crop-icon { width:40px; height:40px; }
+  .pond-stock-card h3 { font-size:13px; }
+  .pond-status,.pond-buttons button { font-size:11px; }
+  .pond-offer { padding:18px 12px; }
+  .seed-heading { flex-wrap:wrap; gap:5px; padding:10px; }
+  .seed-heading h2 { order:0; }
+  .seed-heading>button { order:1; }
+  .seed-note { order:2; flex-basis:100%; font-size:10px; line-height:1.5; }
+  .seed-tray { padding:8px; gap:6px; }
+  .seed-card,.seed-card.selected { min-height:119px; padding:23px 2px 9px; gap:7px; }
+  .seed-art { width:45px; height:45px; }
+  .seed-art .crop-icon { width:36px; height:36px; }
+  .seed-info b { font-size:10px; }
+  .seed-info small { font-size:9px; margin-top:5px; line-height:1.4; }
+  .seed-stock { top:6px; right:5px; font-size:9px; padding:3px 4px; }
+  .seed-card .selected-dot { top:6px; left:5px; width:14px; height:14px; font-size:9px; }
+  .shop-card.produce-card { padding:10px; }
+  .produce-card .shop-crop { height:94px; }
+  .produce-card .shop-crop::before { width:77px; height:77px; }
+  .produce-card .shop-crop .crop-icon { width:58px; height:58px; }
+  .produce-card .shop-crop>span { font-size:9px; padding:4px; }
+  .shop-card.produce-card h3 { font-size:15px; }
+  .shop-card.produce-card p,.shop-card.produce-card>small { font-size:10px; }
+  .shop-card.produce-card button { font-size:11px; }
+  .storage-card.produce-card { gap:9px; padding:10px; flex-wrap:wrap; }
+  .storage-card.produce-card>.crop-icon { width:44px; height:44px; }
+  .storage-card.produce-card h3 { font-size:14px; }
+  .storage-card.produce-card p { font-size:10px; }
+}

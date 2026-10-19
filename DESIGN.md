@@ -63,3 +63,11 @@ Requisitos confirmados pelo usuário: começar com 30 águas, recuperar uma águ
 O usuário também pediu movimento manual, escolha entre fazendeiro e fazendeira e áreas de expansão mais visíveis. O 3D passa a aceitar WASD, setas e clique no chão, com caminhos que evitam obstáculos. O avatar no topo abre a escolha de aparência junto com o nome da fazenda. Os terrenos bloqueados recebem bordas douradas e placas, além de um botão lateral para expandir.
 
 Próxima etapa registrada: progressão que aumenta a capacidade de água conforme o nível. A curva e os marcos de nível serão definidos nessa etapa; a capacidade atual permanece 30.
+
+## Atualização 0.6 — cartões, lago e áreas de criação
+
+O usuário pediu cartões de frutas mais minimalistas e forneceu uma referência de cores com céu azul, verde vivo, amarelo milho e vermelho. A atualização aplica essa paleta aos cartões da bolsa, loja e armazém, com destaque para as ilustrações, quantidades legíveis e seleção explícita.
+
+Também solicitou um lago à venda com peixes, gaiolas de camarões e venda da produção, além de uma fazenda maior onde o personagem possa caminhar ao redor da água. A área navegável 3D foi ampliada de aproximadamente 31 × 23 para 47 × 34 unidades, com colisões na margem, casas, cercas e espaços separados para galinhas, vacas e cavalos. O estábulo contém cavalos decorativos; compra de cavalos, montaria e produção não fazem parte desta atualização. A câmera acompanha deslocamentos até as bordas sem alterar a projeção usada pelos controles do mapa.
+
+O lago é uma compra única de 240 moedas a partir do nível 2. Permite um cardume de peixes (60 moedas) e até três gaiolas de camarões (120 moedas cada, nível 3). Cada criação começa com ração para quatro ciclos; pausa sem alimento, pode ser alimentada novamente, e a coleta guarda produtos reais no armazém. Peixes e camarões concedem XP na coleta e moedas apenas na venda. Os tempos e preços são provisórios. Saves antigos migram sem perder progresso; a reserva de água permanece independente da criação aquática.
