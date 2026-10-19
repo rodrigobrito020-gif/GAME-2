@@ -106,6 +106,26 @@ projeto separado e não faz parte destas alterações.
     A prioridade combinada é melhorar o jogo antes da hospedagem.
     A versão atual ainda é local, para um jogador, com save no navegador.
 
+12. AJUDANTES AUTOMÁTICOS POR CATEGORIA
+    Novo pedido: oferecer bots/ajudantes separados para automatizar as tarefas
+    de cada setor da fazenda, como uma conquista de progressão.
+[ ] Ajudante exclusivo das plantações.
+[ ] Ajudante exclusivo do lago, para peixes e camarões.
+[ ] Ajudante exclusivo da criação de animais.
+[ ] Ajudante exclusivo do moinho, para criar os itens produzidos nele.
+[ ] Ajudante exclusivo do pomar.
+[ ] Cada ajudante tem desbloqueio individual por 100.000 moedas (100k).
+    Comprar um ajudante não libera automaticamente os das outras categorias.
+[ ] Até desbloquear o ajudante de uma categoria, o jogador realiza manualmente
+    todas as tarefas daquele setor. A automação é uma opção futura do jogo,
+    não o funcionamento inicial da fazenda.
+
+    PENDÊNCIAS DE DEFINIÇÃO:
+    - Quais rotinas cada ajudante executa e como o jogador escolhe o que produzir.
+    - Configuração, velocidade, consumo de recursos e comportamento sem insumos.
+    - Se a automação funciona apenas com o jogo aberto ou também offline.
+    - Não foram combinados custos de manutenção ou cobrança recorrente.
+
 AO RETOMAR O TRABALHO
 - Usar esta lista como referência e atualizar os estados conforme cada entrega.
 - Preservar a fluidez aprovada pelo usuário, os itens e os saves existentes.
