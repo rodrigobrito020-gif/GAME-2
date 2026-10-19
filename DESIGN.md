@@ -2,11 +2,11 @@
 
 O usuário esclareceu que deseja uma reprodução fiel do Colheita Feliz clássico do Orkut para jogar com amigos de sua cidade em um evento, sem intenção de publicação. Um jogo genérico apenas inspirado no ciclo de fazenda não atende ao objetivo.
 
-O protótipo atual, chamado provisoriamente Sítio Aurora, é uma base técnica local. Ainda não reproduz o visual original e ainda não permite partidas entre jogadores. O projeto continua independente do GAME-1.
+O usuário forneceu `Colheita_Feliz_Guia_Ilustrado.pdf`. A versão 0.2 usa as capturas e descrições do documento para orientar a organização do cenário e o ciclo de cuidado de plantas e animais. Consulte `docs/REFERENCIA.md` para o que foi aplicado e o que ainda falta. O projeto continua independente do GAME-1 e ainda não permite partidas entre jogadores.
 
 ## Próxima direção
 
-- Usar imagens ou arquivos de referência da versão original escolhida pelo usuário para orientar a reprodução da interface, cenário, itens e ações. Ainda não foram fornecidos recursos do Colheita Feliz.
+- Priorizar o jogo antes da hospedagem, conforme a orientação mais recente do usuário. Usar o guia ilustrado fornecido como referência principal, sem bloquear a implementação por acesso à VPS.
 - Planejar interação real entre os participantes do evento, sem simular amigos como se fossem pessoas conectadas.
 - Conexão confirmada: pela internet, com cerca de 30 jogadores simultâneos. A data do evento ainda não foi informada.
 - O jogo final para o evento precisará salvar as fazendas no servidor e sincronizar as ações entre os jogadores; o localStorage atual não atende a esse requisito.
@@ -29,6 +29,9 @@ O protótipo atual, chamado provisoriamente Sítio Aurora, é uma base técnica 
 - Ver o tempo restante de cada plantação.
 - Salvar o progresso localmente e calcular o crescimento ao voltar.
 - Tutorial curto com objetivos para orientar a primeira colheita.
+- Saúde das plantas, ervas daninhas, pragas, adubo e bônus de cuidado.
+- Loja com oito cultivos, duas espécies de animais e adubo.
+- Animais com ração, ciclos de produção de ovos/leite, coleta, pausa por falta de alimento e persistência.
 
 O primeiro protótipo usa ciclos curtos para permitir testar o jogo. Os tempos e a economia poderão ser ajustados depois.
 

@@ -14,7 +14,7 @@ test('HTML independente joga, salva e não faz requisições externas',async({pa
   await page.goto('/standalone.html');
   await expect(page.locator('#coins')).toHaveText('160');
   await page.locator('[data-plot="0"]').click(); await page.locator('#open-storage').click(); await page.locator('[data-sell-all]').click(); await page.locator('#close-modal').click();
-  await expect(page.locator('#coins')).toHaveText('229');
-  await page.reload(); await expect(page.locator('#coins')).toHaveText('229');
+  await expect(page.locator('#coins')).toHaveText('225');
+  await page.reload(); await expect(page.locator('#coins')).toHaveText('225');
   expect(errors).toEqual([]); expect(network).toEqual([]);
 });

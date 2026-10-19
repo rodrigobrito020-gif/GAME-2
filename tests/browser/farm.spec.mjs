@@ -15,7 +15,7 @@ test('fazenda inicial, ciclo de plantio, água, colheita e venda reais',async({p
   await page.locator('[data-tool="harvest"]').click(); await page.locator('[data-plot="2"]').click();
   await expect(page.locator('#storage-count')).toHaveText('2');
   await page.locator('#open-storage').click(); await page.locator('[data-sell-all]').click();
-  expect((await saved(page)).coins).toBe(160+15+25+38+25); expect((await saved(page)).quests).toHaveLength(3);
+  expect((await saved(page)).coins).toBe(160+15+25+34+25); expect((await saved(page)).quests).toHaveLength(3);
   await expect(page.locator('[data-sell-all]')).toBeDisabled(); expect(errors).toEqual([]);
 });
 test('loja compra, bloqueia cultivos por nível e fecha por Escape',async({page})=>{
@@ -30,7 +30,7 @@ test('expansão abre o canteiro e persiste no reload',async({page})=>{
   await page.locator('[data-plot="7"]').click(); await expect(page.locator('[data-expand]')).toBeDisabled();
 });
 test('progresso offline: reload após avançar relógio preserva plantação e permite colher',async({page})=>{
-  await page.locator('[data-plot="2"]').click(); const before=await saved(page);
+  await page.locator('[data-seed="carrot"]').click(); await page.locator('[data-plot="2"]').click(); const before=await saved(page);
   await page.clock.fastForward(40_000); await page.reload();
   expect((await saved(page)).seeds).toEqual(before.seeds); await expect(page.locator('[data-plot="2"]')).toHaveClass(/ready/);
   await page.locator('[data-plot="2"]').click(); expect((await saved(page)).harvest.carrot).toBe(1);

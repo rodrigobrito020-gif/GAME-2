@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CROPS, QUESTS, newGame, action, decodeSave, plotStatus, progress, expansionPrice, levelInfo } from '../public/game.js';
+import { CROPS, QUESTS, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, progress, expansionPrice, levelInfo } from '../public/game.js';
 const NOW=1_800_000_000_000;
 test('novo sítio começa com nove canteiros, sementes e uma colheita pronta',()=>{
   const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,16);
@@ -17,7 +17,7 @@ test('rejeita canteiro ocupado, bloqueado, inexistente e cultivo sem sementes',(
 test('colher exige maturidade; guarda produto, libera a terra e concede XP',()=>{
   let s=newGame(NOW); assert.equal(action(s,'harvest',{index:1},NOW).ok,false);
   const r=action(s,'harvest',{index:0},NOW); s=r.state;
-  assert.equal(s.harvest.carrot,1); assert.equal(s.xp,5); assert.equal(s.plots[0].crop,null); assert.equal(s.coins,185);
+  assert.equal(s.harvest.turnip,1); assert.equal(s.xp,5); assert.equal(s.plots[0].crop,null); assert.equal(s.coins,185);
   assert.equal(action(s,'harvest',{index:0},NOW).ok,false);
 });
 test('regar adianta 25% do ciclo uma única vez sem criar colheita automaticamente',()=>{
@@ -28,8 +28,8 @@ test('regar adianta 25% do ciclo uma única vez sem criar colheita automaticamen
 });
 test('vender paga o preço correto, dá a recompensa só uma vez e não vende sementes',()=>{
   let s=action(newGame(NOW),'harvest',{index:0},NOW).state;
-  const seeds=structuredClone(s.seeds), r=action(s,'sell',{crop:'carrot'},NOW); s=r.state;
-  assert.equal(r.earned,19); assert.equal(s.coins,229); assert.equal(s.harvest.carrot,0); assert.deepEqual(s.seeds,seeds);
+  const seeds=structuredClone(s.seeds), r=action(s,'sell',{crop:'turnip'},NOW); s=r.state;
+  assert.equal(r.earned,15); assert.equal(s.coins,225); assert.equal(s.harvest.turnip,0); assert.deepEqual(s.seeds,seeds);
   assert.equal(action(s,'sell',{crop:'carrot'},NOW).ok,false);
 });
 test('vender tudo preserva as sementes e não duplica renda em cliques repetidos',()=>{
@@ -54,7 +54,7 @@ test('objetivos recompensam cada conquista exatamente uma vez',()=>{
   assert.equal(s.coins,175); assert.deepEqual(s.quests,['plant']);
   s=action(s,'harvest',{index:0},NOW).state;
   s=action(s,'sellAll',{},NOW).state;
-  assert.equal(s.quests.length,QUESTS.length); assert.equal(s.coins,244);
+  assert.equal(s.quests.length,QUESTS.length); assert.equal(s.coins,240);
 });
 test('save recarrega os mesmos itens e calcula crescimento offline por timestamps',()=>{
   const s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
@@ -89,4 +89,58 @@ test('um ciclo completo de todos os cultivos gera renda e mantém ownership',()=
     s=action(s,'sell',{crop:id},NOW+c.duration).state;
     assert.equal(s.coins,1000-c.cost+c.sell); assert.equal(s.harvest[id],0); assert.equal(s.seeds[id],0);
   }
+});
+
+test('guia: duas plantas iniciais de nabo e migração de saves antigos',()=>{
+  const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.crop==='turnip').length,2);
+  const old=structuredClone(s); for(const k of ['turnip','tomato','watermelon']){delete old.seeds[k];delete old.harvest[k];}delete old.supplies;delete old.animals;delete old.products;delete old.farmName;
+  const loaded=decodeSave(JSON.stringify(old),NOW);assert(loaded);assert.equal(loaded.seeds.tomato,0);assert.equal(loaded.supplies.fertilizer,3);assert.deepEqual(loaded.animals,[]);assert.equal(loaded.coins,s.coins);
+});
+test('mato, pragas e seca reduzem saúde; ferramentas restauram saúde sem XP repetido',()=>{
+  let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  assert.equal(plotCare(s.plots[2],NOW+1).health,100);
+  assert.deepEqual(plotCare(s.plots[2],NOW+20_000),{weeds:true,pests:true,dry:true,health:30});
+  s=action(s,'weed',{index:2},NOW+20_000).state; assert.equal(s.xp,1);
+  assert.equal(action(s,'weed',{index:2},NOW+20_000).ok,false);
+  s=action(s,'spray',{index:2},NOW+20_000).state;
+  s=action(s,'water',{index:2},NOW+20_000).state;
+  assert.equal(plotCare(s.plots[2],NOW+20_000).health,100);assert.equal(s.xp,2);
+  s=action(s,'harvest',{index:2},NOW+31_000).state;assert.equal(s.harvest.carrot,2);
+});
+test('adubo consome uma unidade, adianta tempo e não repete aplicação',()=>{
+  let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+  s=action(s,'fertilize',{index:2},NOW+1000).state;
+  assert.equal(s.supplies.fertilizer,2);assert.equal(s.plots[2].readyAt,NOW+24_000);
+  assert.equal(action(s,'fertilize',{index:2},NOW+1000).ok,false);
+  const r=action(s,'buyFertilizer',{},NOW+1000);assert.equal(r.state.supplies.fertilizer,3);assert.equal(r.state.coins,s.coins-15);
+  s.supplies.fertilizer=0;assert.equal(action(s,'fertilize',{index:6},NOW).ok,false);
+});
+test('animais: compra, limite de nível, ração, produção offline e coleta única',()=>{
+  let s=newGame(NOW);assert.equal(action(s,'buyAnimal',{animal:'cow'},NOW).ok,false);
+  s=action(s,'buyAnimal',{animal:'chicken'},NOW).state;assert.equal(s.coins,100);assert.equal(s.animals.length,1);
+  assert.equal(action(s,'collectAnimal',{animalIndex:0},NOW+59_999).ok,false);
+  assert.equal(animalProduction(s.animals[0],NOW+61_000).amount,1);
+  s=action(s,'collectAnimal',{animalIndex:0},NOW+61_000).state;assert.equal(s.products.egg,1);
+  assert.equal(action(s,'collectAnimal',{animalIndex:0},NOW+61_000).ok,false);
+  const p=animalProduction(s.animals[0],NOW+900_000);assert.equal(p.amount,3);assert.equal(p.hungry,true);
+  s=action(s,'feedAnimal',{animalIndex:0},NOW+900_000).state;
+  assert.equal(s.coins,95);assert.equal(animalProduction(s.animals[0],NOW+900_000).amount,3);
+  s=action(s,'collectAnimal',{animalIndex:0},NOW+900_000).state;assert.equal(s.products.egg,4);
+  assert.equal(animalProduction(s.animals[0],NOW+959_999).amount,0);assert.equal(animalProduction(s.animals[0],NOW+960_000).amount,1);
+  const loaded=decodeSave(JSON.stringify(s),NOW+960_000);assert.deepEqual(loaded.animals,s.animals);assert.deepEqual(loaded.products,s.products);
+  s=action(s,'sellAll',{},NOW+960_000).state;assert.equal(s.products.egg,0);assert.equal(s.coins,95+4*16+25);
+});
+test('vaca produz leite; alimentação antes de acabar preserva o ciclo; cercado comporta seis',()=>{
+  let s=newGame(NOW);s.xp=100;s.coins=10000;
+  s=action(s,'buyAnimal',{animal:'cow'},NOW).state;
+  s=action(s,'feedAnimal',{animalIndex:0},NOW+30_000).state;
+  assert.equal(s.animals[0].readyAt,NOW+ANIMALS.cow.duration);
+  s=action(s,'collectAnimal',{animalIndex:0},NOW+120_000).state;assert.equal(s.products.milk,1);
+  for(let i=0;i<5;i++)s=action(s,'buyAnimal',{animal:'chicken'},NOW).state;
+  assert.equal(action(s,'buyAnimal',{animal:'chicken'},NOW).ok,false);
+  assert.equal(action(s,'feedAnimal',{animalIndex:-1},NOW).ok,false);
+});
+test('nome da fazenda validado e persistido sem alterar a economia',()=>{
+  const s=newGame(NOW);assert.equal(action(s,'rename',{name:'a'},NOW).ok,false);
+  const r=action(s,'rename',{name:' Sítio do evento '},NOW);assert.equal(r.state.farmName,'Sítio do evento');assert.equal(r.state.coins,s.coins);assert.equal(decodeSave(JSON.stringify(r.state),NOW).farmName,'Sítio do evento');
 });

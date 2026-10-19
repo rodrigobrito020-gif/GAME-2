@@ -27,9 +27,9 @@ for(const width of [980,390]) {
     await preview.locator('[data-plot="0"]').click();
     await preview.locator('#open-storage').click();
     await preview.locator('[data-sell-all]').click();
-    await expect(preview.locator('.gold-pill')).toContainText('229');
+    await expect(preview.locator('.gold-pill')).toContainText('225');
     await preview.locator('#close-modal').click();
-    await expect(preview.locator('#coins')).toHaveText('229');
+    await expect(preview.locator('#coins')).toHaveText('225');
     expect(errors).toEqual([]); expect(requests).toEqual([]);
     expect(await preview.locator('html').evaluate(el=>el.scrollWidth<=innerWidth)).toBe(true);
   });

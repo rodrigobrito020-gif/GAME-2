@@ -1,6 +1,8 @@
-# GAME-2 — Sítio Aurora
+# GAME-2 — Colheita Feliz, versão 0.2
 
-Um novo jogo de fazenda para navegador, inspirado no ciclo de plantio do **Colheita Feliz**, clássico do Orkut. Arte vetorial e implementação próprias. Projeto independente do GAME-1.
+Recriação em desenvolvimento do **Colheita Feliz**, clássico do Orkut, orientada pelo guia ilustrado enviado pelo usuário. O cenário e as mecânicas seguem as referências históricas; a arte vetorial e a implementação são próprias. O jogo ainda está em versão local para um jogador e continua independente do GAME-1.
+
+O guia e o registro das referências aplicadas estão em [docs/REFERENCIA.md](docs/REFERENCIA.md).
 
 ## Jogar sem instalar
 
@@ -11,16 +13,21 @@ O progresso é salvo neste navegador e neste endereço/arquivo. Mudar de navegad
 ## O que já funciona
 
 - Fazenda isométrica com 9 canteiros iniciais e expansão até 16.
-- Cinco cultivos: cenoura, trigo, morango, milho e abóbora.
+- Oito cultivos: nabo, cenoura, trigo, morango, milho, abóbora, tomate e melancia. Novas fazendas começam com duas plantações de nabo.
 - Bolsa de sementes, compra na loja, plantio, rega, crescimento, colheita e venda no armazém.
 - A rega adianta 25% do tempo total, uma vez por cultivo.
+- Ervas daninhas, pragas e seca reduzem a saúde mostrada ao apontar para o canteiro. Capine e dedetize para recuperar a saúde e ganhar um produto extra por cultivo tratado.
+- Adubo consumível adianta mais 20% do ciclo, com estoque e reposição na loja.
+- Galinhas e vacas com alimentação e produção de ovos/leite, incluindo crescimento offline, coleta e venda. Sem ração, a produção pausa; alimentar retoma o ciclo preservando produtos já gerados.
+- Loja com categorias de sementes, animais e ferramentas; cercado com capacidade de seis animais.
+- Nome da fazenda editável, missões em janela e bolsa que abre e fecha.
 - Experiência, níveis e cultivos desbloqueados progressivamente.
 - Três objetivos iniciais com recompensas únicas.
 - Crescimento calculado por horário, inclusive depois de fechar e reabrir.
 - Zoom, atalhos de teclado, controles por toque e interface adaptada para telas pequenas.
 - Backup de progresso ilegível e aviso quando o salvamento não está disponível.
 
-Os primeiros ciclos duram de 30 segundos a 5 minutos para facilitar a avaliação do protótipo. A economia e os tempos ainda são iniciais.
+Os ciclos de cultivo duram de 30 segundos a 6 minutos para facilitar a avaliação. Preços, tempos, XP e bônus são parâmetros provisórios desta implementação, sem afirmar equivalência com a economia oficial do jogo histórico.
 
 ## Desenvolver
 
@@ -57,12 +64,12 @@ $env:CHROMIUM_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 npm run test:browser
 ```
 
-As verificações cobrem as regras de economia, maturidade, rega, recompensas únicas, compras, expansão, níveis, dados inválidos e o ciclo completo. No navegador, cobrem as interações reais, salvamento, crescimento ao voltar, teclado, zoom, tela móvel e o arquivo HTML independente. O relógio é avançado nos testes para verificar o crescimento sem esperar minutos reais.
+As verificações cobrem economia, maturidade, saúde, rega, capina, pragas, adubo, recompensas únicas, compras, expansão, níveis, dados inválidos e o ciclo completo. Também verificam alimentação dos animais, pausa da produção, coleta única, persistência e venda. No navegador, exercitam cliques reais, salvamento, crescimento ao voltar, teclado, zoom, tela móvel, prévia isolada e HTML independente. O relógio é avançado nos testes para verificar o crescimento sem esperar minutos reais.
 
 O Chromium gerenciado deste ambiente bloqueia endereços `file://`. Por isso, o HTML independente foi testado por HTTP, fornecendo apenas esse arquivo e verificando que não solicita recursos auxiliares. A abertura direta por dois cliques não pôde ser verificada aqui. Se seu navegador também bloquear, use o servidor descrito acima.
 
 ## Escopo desta versão
 
-Este protótipo é para um jogador, com salvamento local. Animais, decoração editável, visitas, presentes e interação entre amigos ainda não foram implementados. Multiplayer e autenticação exigirão um servidor.
+Esta versão é para um jogador, com salvamento local. Vizinhos, ajuda, roubo de colheitas, proteção do cachorro, flores/popularidade, decoração editável e presentes ainda não foram implementados. Multiplayer e autenticação serão tratados depois do jogo, conforme a prioridade atual do usuário.
 
-Não usa modelos ou código do RPG GAME-1 nem arquivos do Colheita Feliz original. O nome Sítio Aurora é provisório e pode ser alterado.
+Não usa modelos ou código do RPG GAME-1. As capturas do guia orientam a reconstrução, e os desenhos atuais são SVGs próprios; esta entrega ainda não equivale ao cliente Flash original completo. O progresso anterior do protótipo Sítio Aurora é preservado pela mesma chave de salvamento, sem reiniciar os itens do jogador.

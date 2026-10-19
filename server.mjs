@@ -15,4 +15,4 @@ const server = http.createServer(async (req, res) => {
     res.end(content);
   } catch { res.writeHead(404).end('Página não encontrada.'); }
 });
-server.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log(`Sítio Aurora disponível na porta ${server.address().port}`));
+server.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log(`Colheita Feliz — GAME-2 disponível na porta ${server.address().port}`));
