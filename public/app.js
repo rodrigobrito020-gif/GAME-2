@@ -1,5 +1,5 @@
 import { createFarm3D } from './farm3d.js';
-import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, animalProduction, QUESTS, FERTILIZER_PRICE, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, growthRemaining, expansionPrice, action } from './game.js';
+import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, animalProduction, QUESTS, FERTILIZER_PRICE, WATER_CAPACITY, waterStatus, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, growthRemaining, expansionPrice, action } from './game.js';
 import { icon, cropIcon, animalIcon, animalMarkup, landscape, plotMarkup } from './art.js';
 
 const $ = selector => document.querySelector(selector);
@@ -38,11 +38,24 @@ function run(type,payload={}) {
 function selectTool(next) {
   tool=next; farm3d?.selectTool(next);
   document.querySelectorAll('[data-tool]').forEach(el=>{ el.classList.toggle('active',el.dataset.tool===tool); el.setAttribute('aria-pressed',String(el.dataset.tool===tool)); });
-  $('#map-hint').textContent={smart:'Selecione um canteiro para plantar ou colher.',plant:`Plante ${CROPS[selectedCrop].name.toLowerCase()} em um canteiro vazio`,water:'Regue as plantas secas para iniciar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
+  $('#map-hint').textContent={smart:'WASD ou clique no chão para andar. Escolha um canteiro para cuidar.',plant:`Plante ${CROPS[selectedCrop].name.toLowerCase()} em um canteiro vazio`,water:'Regue as plantas secas para iniciar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
   farm.dataset.activeTool=tool;
+}
+function renderWater(now=Date.now()) {
+  const water=waterStatus(state,now), seconds=Math.ceil(water.remaining/1000);
+  const clock=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
+  $('#water-amount').textContent=water.amount;
+  $('#water-count').textContent=water.amount;
+  $('#water-refill').textContent=water.amount===WATER_CAPACITY?'Reserva cheia':`+1 em ${clock}`;
+  $('#water-reserve').classList.toggle('empty',water.amount===0);
+  const label=`${water.amount} de ${WATER_CAPACITY} águas. ${water.amount===WATER_CAPACITY?'Reserva cheia.':`Próxima água em ${time(water.remaining)}.`}`;
+  $('#water-reserve').setAttribute('aria-label',label);
+  $('[data-tool="water"]').title=label;
+  $('[data-tool="water"]').classList.toggle('depleted',water.amount===0);
 }
 function renderPlots(force=false) {
   const now=Date.now();
+  renderWater(now);
   const signature=JSON.stringify([state.plots.map(p=>[p.unlocked,p.crop,p.watered,p.fertilized,plotCare(p,now),plotStatus(p,now),Math.floor(progress(p,now)*2)]),(state.animals||[]).map(a=>[a.type,animalProduction(a,now).amount,animalProduction(a,now).hungry])]);
   if(force||signature!==lastSignature) {
     const focus=document.activeElement?.dataset.plot;
@@ -65,6 +78,9 @@ function render() {
   $('#xp-fill').style.width=`${Math.min(100,level.current/level.required*100)}%`; $('#xp-label').textContent=`${level.current} / ${level.required} XP`;
   $('#plot-count').textContent=`${state.plots.filter(p=>p.unlocked).length} canteiros`;
   $('#farm-name').textContent=state.farmName || 'Minha fazenda';
+  $('#farmer-avatar').textContent=state.farmer==='female'?'👩🏻‍🌾':'👨🏻‍🌾';
+  $('#farmer-title').textContent=state.farmer==='female'?'Fazendeira':'Fazendeiro';
+  const canExpand=state.plots.some(p=>!p.unlocked);$('#open-expand').disabled=!canExpand;$('#expansion-cost').textContent=canExpand?expansionPrice(state):'✓';$('#open-expand').title=canExpand?`Novo canteiro: ${expansionPrice(state)} moedas`:'Todos os canteiros liberados';
   $('#fertilizer-count').textContent=state.supplies?.fertilizer ?? 3;
   $('#storage-count').textContent=[...Object.values(state.harvest),...Object.values(state.products||{})].reduce((a,b)=>a+b,0);
   $('#quest-count').textContent=`${state.quests.length}/3`;
@@ -98,7 +114,7 @@ function activateMapTarget(target) {
   const building=target.closest('[data-building]');if(building){if(building.dataset.building==='house')openModal('rename');else if(building.dataset.building==='barn')openModal('storage');else{shopTab='animals';openModal('shop');}return;}
   const plot=target.closest('[data-plot]');if(plot)plotClick(Number(plot.dataset.plot));
 }
-farm.addEventListener('click',e=>activateMapTarget(e.target));
+farm.addEventListener('click',e=>{if(e.target.closest('[data-plot],[data-animal],[data-building]'))activateMapTarget(e.target);else farm3d?.moveTo(e.clientX,e.clientY);});
 farm.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('[data-plot],[data-animal],[data-building]')){e.preventDefault();activateMapTarget(e.target);}});
 function showPlotInfo(index) {
   if(farm3d?.busy){$('#plot-tooltip').classList.remove('visible');return;}
@@ -122,10 +138,10 @@ farm.addEventListener('focusout',()=>$('#plot-tooltip').classList.remove('visibl
 document.querySelectorAll('[data-tool]').forEach(el=>el.addEventListener('click',()=>selectTool(el.dataset.tool)));
 $('#seed-tray').addEventListener('click',e=>{ const el=e.target.closest('[data-seed]'); if(el&&!el.disabled) {selectedCrop=el.dataset.seed;selectTool('plant');render();} });
 
-function openModal(type) { returnFocus=document.activeElement; modalType=type; renderModal(); $('#modal').showModal(); }
+function openModal(type) {if(type==='rename')farm3d?.cancel(); returnFocus=document.activeElement; modalType=type; renderModal(); $('#modal').showModal(); }
 function closeModal() { $('#modal').close(); modalType=null; returnFocus?.focus({preventScroll:true}); }
 function renderModal() {
-  const titles={shop:['TUDO PARA SUA PLANTAÇÃO','Loja de sementes'],storage:['SUA PRODUÇÃO','Seu armazém'],help:['COLHEITA FELIZ · GAME-2','Como jogar'],expand:['MAIS ESPAÇO PARA PLANTAR','Expanda sua fazenda'],goals:['RECOMPENSAS','Missões da fazenda'],rename:['DO SEU JEITO','Nome da fazenda'],animal:['SEU CERCADO','Criação de animais']};
+  const titles={shop:['TUDO PARA SUA PLANTAÇÃO','Loja de sementes'],storage:['SUA PRODUÇÃO','Seu armazém'],help:['COLHEITA FELIZ · GAME-2','Como jogar'],expand:['MAIS ESPAÇO PARA PLANTAR','Expanda sua fazenda'],goals:['RECOMPENSAS','Missões da fazenda'],rename:['DO SEU JEITO','Fazenda e personagem'],animal:['SEU CERCADO','Criação de animais']};
   $('#modal-eyebrow').textContent=titles[modalType][0]; $('#modal-title').textContent=titles[modalType][1];
   if(modalType==='shop') {
     $('#modal-body').innerHTML=`<div class="modal-summary"><p>Sementes pequenas. Possibilidades enormes.</p><span class="gold-pill">● ${format(state.coins)} moedas</span></div><div class="shop-grid">${Object.entries(CROPS).map(([id,c])=>{
@@ -151,8 +167,9 @@ function renderModal() {
   } else if(modalType==='rename') {
     $('#modal-body').innerHTML='<form id="rename-form"><label for="farm-name-input">Como vai se chamar sua fazenda?</label><input id="farm-name-input" name="farmName" minlength="2" maxlength="30" required autocomplete="off"><button class="primary-button full" type="submit">Salvar nome</button></form>';
     $('#farm-name-input').value=state.farmName||'Minha fazenda';
+    $('#rename-form').insertAdjacentHTML('afterbegin',`<fieldset class="farmer-choices"><legend>Seu personagem</legend>${[['male','👨🏻‍🌾','Fazendeiro'],['female','👩🏻‍🌾','Fazendeira']].map(([id,emoji,name])=>`<label><input type="radio" name="farmer" value="${id}" ${(state.farmer||'male')===id?'checked':''}><span>${emoji}</span><b>${name}</b></label>`).join('')}</fieldset>`);
   } else {
-    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Selecione uma semente na bolsa e clique em um canteiro vazio. Compre novas sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
+    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Selecione uma semente na bolsa e clique em um canteiro vazio. Compre novas sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>Cada canteiro regado gasta 1 água. Você começa com 30 e recupera 1 a cada 2 minutos, até 30, inclusive fora do jogo. O contador no topo mostra a próxima recarga. A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Clique no seu avatar no topo para escolher fazendeiro ou fazendeira. Use <b>WASD</b>, as setas ou clique no chão para andar em 3D; mover cancela tarefas pendentes. Os terrenos dourados e o botão <b>Expandir</b> liberam novos canteiros.<br>Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
   }
 }
 $('#modal-body').addEventListener('click',e=>{
@@ -167,8 +184,9 @@ $('#modal-body').addEventListener('click',e=>{
   if(e.target.closest('[data-expand]')&&!e.target.closest('button').disabled) {if(run('expand',{index:expansionIndex})) closeModal();return;}
   if(e.target.closest('[data-help-close]')) closeModal();
 });
-$('#modal-body').addEventListener('submit',e=>{if(e.target.id==='rename-form'){e.preventDefault();if(run('rename',{name:$('#farm-name-input').value}))closeModal();}});
+$('#modal-body').addEventListener('submit',e=>{if(e.target.id==='rename-form'){e.preventDefault();if(run('rename',{name:$('#farm-name-input').value,farmer:$('#rename-form input[name="farmer"]:checked').value}))closeModal();}});
 $('#open-shop').addEventListener('click',()=>{shopTab='seeds';openModal('shop');});
+$('#open-expand').addEventListener('click',()=>{expansionIndex=state.plots.findIndex(p=>!p.unlocked);if(expansionIndex>=0)openModal('expand');});
 $('#open-storage').addEventListener('click',()=>openModal('storage'));
 $('#help').addEventListener('click',()=>openModal('help'));
 $('#open-goals').addEventListener('click',()=>openModal('goals'));

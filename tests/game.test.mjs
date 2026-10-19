@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CROPS, QUESTS, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
+import { CROPS, QUESTS, WATER_CAPACITY, WATER_REFILL_MS, waterStatus, newGame, action, decodeSave, plotStatus, plotCare, animalProduction, ANIMALS, progress, growthRemaining, expansionPrice, levelInfo } from '../public/game.js';
 const NOW=1_800_000_000_000;
 test('novo sítio começa com nove canteiros, sementes e uma colheita pronta',()=>{
   const s=newGame(NOW); assert.equal(s.plots.filter(p=>p.unlocked).length,9); assert.equal(plotStatus(s.plots[0],NOW),'ready'); assert.equal(s.coins,160); assert.equal(s.seeds.carrot,6); assert.equal(s.plots.length,16);
@@ -175,4 +175,62 @@ test('adubo não substitui água nem é consumido em planta seca; save antigo n�
  delete s.plots[2].growthStartedAt;
  s=decodeSave(JSON.stringify(s),NOW+86400_000);assert.equal(plotStatus(s.plots[2],NOW+86400_000),'dry');assert.equal(action(s,'harvest',{index:2},NOW+86400_000).ok,false);
  s=action(s,'water',{index:2},NOW+86400_000).state;assert.equal(plotStatus(s.plots[2],NOW+86400_000),'growing');
+});
+
+
+test('regador começa com 30 águas; as duas plantas iniciais não gastam a reserva',()=>{
+ const s=newGame(NOW);assert.equal(WATER_CAPACITY,30);assert.equal(WATER_REFILL_MS,120000);
+ assert.deepEqual(waterStatus(s,NOW),{amount:30,nextAt:null,remaining:0});
+ assert.deepEqual(waterStatus(s,NOW+86400000),{amount:30,nextAt:null,remaining:0});
+});
+test('rega gasta uma água; regas inválidas e outras ações não gastam nem reiniciam recarga',()=>{
+ let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+ s=action(s,'water',{index:2},NOW).state;assert.deepEqual(s.water,{amount:29,nextAt:NOW+120000});
+ const invalid=action(s,'water',{index:2},NOW+30000);assert.equal(invalid.ok,false);assert.deepEqual(invalid.state,s);
+ s=action(s,'buy',{crop:'carrot'},NOW+30000).state;assert.deepEqual(s.water,{amount:29,nextAt:NOW+120000});
+ s=action(s,'plant',{index:6,crop:'carrot'},NOW+30000).state;s=action(s,'water',{index:6},NOW+30000).state;
+ assert.deepEqual(s.water,{amount:28,nextAt:NOW+120000});
+ const before=structuredClone(s);assert.deepEqual(waterStatus(s,NOW+119999),{amount:28,nextAt:NOW+120000,remaining:1});assert.deepEqual(s,before);
+ assert.deepEqual(waterStatus(s,NOW+120000),{amount:29,nextAt:NOW+240000,remaining:120000});
+ assert.deepEqual(waterStatus(s,NOW+240000),{amount:30,nextAt:null,remaining:0});
+});
+test('sem água não rega nem inicia crescimento; a primeira carga libera exatamente em dois minutos',()=>{
+ let s=action(newGame(NOW),'plant',{index:2,crop:'carrot'},NOW).state;
+ s.water={amount:0,nextAt:NOW+120000};const before=structuredClone(s);
+ for(const t of [NOW,NOW+60000,NOW+119999]){const r=action(s,'water',{index:2},t);assert.equal(r.ok,false);assert.match(r.message,/Sem água/);assert.deepEqual(r.state,before);}
+ s=action(s,'water',{index:2},NOW+120000).state;
+ assert.deepEqual(s.water,{amount:0,nextAt:NOW+240000});assert.equal(s.plots[2].watered,true);assert.equal(s.plots[2].growthStartedAt,NOW+120000);
+});
+test('recarga offline preserva fração de tempo e para em 30, sem acumular bônus na reserva cheia',()=>{
+ const s=newGame(NOW);s.water={amount:2,nextAt:NOW+120000};
+ const loaded=decodeSave(JSON.stringify(s),NOW+5*60000);
+ assert.deepEqual(loaded.water,{amount:4,nextAt:NOW+360000});assert.equal(waterStatus(loaded,NOW+300000).remaining,60000);
+ const full=decodeSave(JSON.stringify(s),NOW+86400000);assert.deepEqual(full.water,{amount:30,nextAt:null});
+ let planted=action(full,'plant',{index:2,crop:'carrot'},NOW+86400000).state;planted=action(planted,'water',{index:2},NOW+86400000).state;
+ assert.deepEqual(planted.water,{amount:29,nextAt:NOW+86400000+120000});
+});
+test('reabrir não reinicia a recarga e saves anteriores ganham 30 águas preservando os itens',()=>{
+ const s=newGame(NOW);s.water={amount:0,nextAt:NOW+120000};
+ const first=decodeSave(JSON.stringify(s),NOW+70000),second=decodeSave(JSON.stringify(first),NOW+110000);
+ assert.deepEqual(second.water,s.water);assert.equal(waterStatus(second,NOW+110000).remaining,10000);
+ const old=structuredClone(s);delete old.water;old.coins=777;old.seeds.carrot=17;
+ const migrated=decodeSave(JSON.stringify(old),NOW+70000);assert.deepEqual(migrated.water,{amount:30,nextAt:null});assert.equal(migrated.coins,777);assert.deepEqual(migrated.seeds,old.seeds);assert.deepEqual(migrated.plots,old.plots);
+});
+test('saves rejeitam quantidades e horários de água inválidos',()=>{
+ for(const water of [null,{amount:-1,nextAt:NOW},{amount:31,nextAt:null},{amount:1.5,nextAt:NOW},{amount:0,nextAt:null},{amount:0,nextAt:'120000'},{amount:30,nextAt:NOW}]){
+  const s=newGame(NOW);s.water=water;assert.equal(decodeSave(JSON.stringify(s),NOW),null);
+ }
+});
+
+test('fazendeiro e fazendeira persistem sem mudar itens, progresso ou reserva de água',()=>{
+ const s=newGame(NOW);s.coins=777;s.seeds.carrot=18;s.water={amount:12,nextAt:NOW+120000};
+ const changed=action(s,'rename',{name:'Fazenda da Aurora',farmer:'female'},NOW).state;
+ assert.equal(changed.farmer,'female');assert.equal(changed.farmName,'Fazenda da Aurora');assert.deepEqual(changed.water,s.water);assert.deepEqual(changed.seeds,s.seeds);assert.equal(changed.coins,777);assert.deepEqual(changed.plots,s.plots);
+ const loaded=decodeSave(JSON.stringify(changed),NOW+1000);assert.equal(loaded.farmer,'female');assert.deepEqual(loaded.water,s.water);
+ assert.equal(action(loaded,'rename',{name:loaded.farmName,farmer:'male'},NOW+1000).state.farmer,'male');
+ const old=structuredClone(s);delete old.farmer;assert.equal(decodeSave(JSON.stringify(old),NOW).farmer,'male');
+});
+test('aparência inválida não altera o personagem nem os itens',()=>{
+ const s=newGame(NOW);assert.equal(action(s,'rename',{name:'Teste',farmer:'unknown'},NOW).ok,false);assert.equal(s.farmer,'male');
+ s.farmer='unknown';assert.equal(decodeSave(JSON.stringify(s),NOW),null);
 });

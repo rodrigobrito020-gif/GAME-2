@@ -54,3 +54,12 @@ Após mostrar uma referência de fazenda 3D cartoon com câmera inclinada, o usu
 A vista principal passa a ser uma cena 3D em Three.js, com modelos próprios e câmera ortográfica inclinada. O personagem caminha pelos corredores entre os canteiros e executa as tarefas com ferramentas presas à mão. A alteração da plantação ocorre durante a animação e é validada naquele instante. Uma fila conserva a intenção de cada clique. As regras, o estoque e o salvamento local continuam independentes do renderizador. A vista SVG anterior é mantida como alternativa compatível quando WebGL não está disponível. A compilação continua gerando HTML autocontido.
 
 O objetivo de jogo online para cerca de 30 pessoas permanece no escopo futuro; mudar o renderizador e salvar no GitHub não implementa multiplayer.
+
+
+## Atualização 0.5 — água e interação com a fazenda
+
+Requisitos confirmados pelo usuário: começar com 30 águas, recuperar uma água a cada dois minutos e mostrar água e moedas no topo. Cada rega bem-sucedida consome uma água. A reserva para de acumular ao chegar a 30. O prazo é persistido por timestamp; reabrir ou ficar offline preserva o tempo. O personagem só consome durante o movimento de regar. Sem água, o canteiro permanece seco.
+
+O usuário também pediu movimento manual, escolha entre fazendeiro e fazendeira e áreas de expansão mais visíveis. O 3D passa a aceitar WASD, setas e clique no chão, com caminhos que evitam obstáculos. O avatar no topo abre a escolha de aparência junto com o nome da fazenda. Os terrenos bloqueados recebem bordas douradas e placas, além de um botão lateral para expandir.
+
+Próxima etapa registrada: progressão que aumenta a capacidade de água conforme o nível. A curva e os marcos de nível serão definidos nessa etapa; a capacidade atual permanece 30.

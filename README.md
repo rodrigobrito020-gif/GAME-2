@@ -1,4 +1,4 @@
-# GAME-2 — Colheita Feliz 3D, versão 0.4
+# GAME-2 — Colheita Feliz 3D, versão 0.5
 
 Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
 
@@ -18,6 +18,16 @@ Selecione uma ferramenta e clique no canteiro. O fazendeiro caminha pelas passag
 A alteração acontece durante a animação, após chegar ao canteiro. É possível selecionar vários canteiros para formar uma fila de até 12 tarefas. Cada tarefa conserva a ferramenta e a semente escolhidas no clique; cliques repetidos na mesma tarefa não duplicam produtos. As condições são verificadas novamente quando a ação acontece. Uma tarefa ainda não aplicada não gasta sementes ou adubo e não é salva ao fechar a aba.
 
 Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 7** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
+
+## Água, personagem e expansão — versão 0.5
+
+- A fazenda começa com **30 águas**. Cada canteiro regado gasta uma; a reserva recupera **uma água a cada 2 minutos**, até 30, inclusive offline. Água e moedas aparecem juntas no topo, com a contagem para a próxima carga. Gastar mais água não reinicia uma recarga em andamento. Reabrir o jogo mantém o tempo restante.
+- Sem água disponível, a rega é bloqueada e a plantação continua seca. No 3D, o consumo acontece durante a animação, com nova validação para cada tarefa da fila. Saves anteriores recebem a reserva cheia sem perder seus itens.
+- **WASD**, setas e clique no chão movem o personagem na fazenda 3D. O clique procura um caminho livre; casas, lago e canteiros plantáveis delimitam os percursos. Mover manualmente cancela tarefas pendentes, antes de consumir recursos.
+- Clique no **avatar no topo** para escolher **fazendeiro ou fazendeira** e editar o nome da fazenda. A escolha altera o modelo 3D, o avatar e fica salva.
+- Terrenos bloqueados têm bordas douradas e placas de **Expandir** com o preço. O botão **Expandir** na lateral abre a compra do próximo canteiro. A compra continua exigindo as moedas correspondentes.
+
+O aumento da capacidade de água conforme o nível foi solicitado para uma próxima etapa; nesta versão, a capacidade é 30 em todos os níveis.
 
 ## Mecânicas preservadas
 

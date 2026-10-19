@@ -15,6 +15,18 @@ export const QUESTS = [
   { id: 'sell', title: 'Frutos do seu trabalho', detail: 'Venda uma colheita no armazém.', reward: 25 }
 ];
 export const FERTILIZER_PRICE = 15;
+export const WATER_CAPACITY = 30;
+export const WATER_REFILL_MS = 120_000;
+// A full tank does not bank recharge time. Only the first missing charge
+// starts the clock; spending another charge preserves the current countdown.
+export function waterStatus(state, now = Date.now()) {
+  const water = state.water ?? { amount: WATER_CAPACITY, nextAt: null };
+  if (water.amount === WATER_CAPACITY) return { amount: WATER_CAPACITY, nextAt: null, remaining: 0 };
+  const recovered = now < water.nextAt ? 0 : Math.floor((now - water.nextAt) / WATER_REFILL_MS) + 1;
+  const amount = Math.min(WATER_CAPACITY, water.amount + recovered);
+  const nextAt = amount === WATER_CAPACITY ? null : water.nextAt + recovered * WATER_REFILL_MS;
+  return { amount, nextAt, remaining: nextAt === null ? 0 : Math.max(0, nextAt - now) };
+}
 export const PRODUCTS = Object.freeze({ egg: { name:'Ovo', plural:'Ovos', sell:16 }, milk: { name:'Leite', plural:'Leite', sell:40 } });
 export const ANIMALS = Object.freeze({ chicken: { name:'Galinha', cost:60, feedCost:5, duration:60_000, product:'egg', xp:5, level:1 }, cow: { name:'Vaca', cost:180, feedCost:12, duration:120_000, product:'milk', xp:10, level:2 } });
 const ids = Object.keys(CROPS);
@@ -28,7 +40,7 @@ export function newGame(now = Date.now()) {
   const plots = Array.from({ length: 16 }, (_, i) => ({ unlocked: Math.floor(i / 4) < 3 && i % 4 < 3, crop: null, plantedAt: 0, readyAt: 0, watered: false }));
   Object.assign(plots[0], { crop: 'turnip', plantedAt: now - 30_000, growthStartedAt: now - 30_000, readyAt: now, watered: true, weeded: true, sprayed: false });
   Object.assign(plots[1], { crop: 'turnip', plantedAt: now - 8000, growthStartedAt: now - 8000, readyAt: now + 22_000, watered: true });
-  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', supplies: { fertilizer: 3 }, animals:[], products:{egg:0,milk:0}, seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
+  return { version: 1, coins: 160, xp: 0, farmName: 'Minha fazenda', farmer: 'male', water: { amount: WATER_CAPACITY, nextAt: null }, supplies: { fertilizer: 3 }, animals:[], products:{egg:0,milk:0}, seeds: { turnip: 6, carrot: 6, wheat: 3, strawberry: 0, corn: 0, pumpkin: 0, tomato: 0, watermelon: 0 }, harvest: Object.fromEntries(ids.map(k => [k, 0])), plots, quests: [], stats: { planted: 0, harvested: 0, sold: 0 }, updatedAt: now };
 }
 export function decodeSave(raw, now = Date.now()) {
   try {
@@ -48,11 +60,17 @@ export function decodeSave(raw, now = Date.now()) {
     if (s.quests.some(q => !QUESTS.some(known => known.id === q)) || new Set(s.quests).size !== s.quests.length) return null;
     if (s.supplies && (!Number.isInteger(s.supplies.fertilizer) || !number(s.supplies.fertilizer, 1e6))) return null;
     if (s.farmName !== undefined && (typeof s.farmName !== 'string' || s.farmName.length > 30)) return null;
+    if (s.farmer !== undefined && !['male','female'].includes(s.farmer)) return null;
+    if (s.water !== undefined) {
+      if (!s.water || !Number.isInteger(s.water.amount) || !number(s.water.amount, WATER_CAPACITY)) return null;
+      if (s.water.amount === WATER_CAPACITY ? s.water.nextAt !== null : !number(s.water.nextAt, 9e15)) return null;
+    }
+    const { amount, nextAt } = waterStatus(s, now);
     const animals=s.animals||[], products=s.products||{egg:0,milk:0};
     if(!Array.isArray(animals)||animals.length>6)return null;
     for(const a of animals)if(!a||!Object.hasOwn(ANIMALS,a.type)||!number(a.readyAt,9e15)||!number(a.fedUntil,9e15)||!Number.isInteger(a.pending)||!number(a.pending,1e6))return null;
     for(const k of Object.keys(PRODUCTS))if(!Number.isInteger(products[k])||!number(products[k],1e6))return null;
-    return { ...s, farmName: s.farmName || 'Minha fazenda', supplies: s.supplies || { fertilizer: 3 }, animals,products,updatedAt: now };
+    return { ...s, farmer: s.farmer || 'male', water: { amount, nextAt }, farmName: s.farmName || 'Minha fazenda', supplies: s.supplies || { fertilizer: 3 }, animals,products,updatedAt: now };
   } catch { return null; }
 }
 export function plotStatus(plot, now = Date.now()) {
@@ -86,6 +104,8 @@ export function animalProduction(animal, now=Date.now()) {
 export function action(state, type, payload = {}, now = Date.now()) {
   const fail = message => ({ ok: false, message, state });
   const next = structuredClone(state);
+  const water = waterStatus(state, now);
+  next.water = { amount: water.amount, nextAt: water.nextAt };
   const crop = Object.hasOwn(CROPS, payload.crop) ? CROPS[payload.crop] : null;
   const plot = Number.isInteger(payload.index) && payload.index >= 0 && payload.index < next.plots.length ? next.plots[payload.index] : null;
   let message = '', earned = 0;
@@ -116,7 +136,8 @@ export function action(state, type, payload = {}, now = Date.now()) {
     }
   } else if (type === 'rename') {
     if (typeof payload.name !== 'string' || payload.name.trim().length < 2 || payload.name.trim().length > 30) return fail('Use um nome de 2 a 30 caracteres.');
-    next.farmName = payload.name.trim(); message = 'Sua fazenda ganhou um nome!';
+    if (payload.farmer !== undefined && !['male','female'].includes(payload.farmer)) return fail('Escolha fazendeiro ou fazendeira.');
+    next.farmName = payload.name.trim();next.farmer=payload.farmer ?? next.farmer ?? 'male'; message = 'Fazenda e personagem atualizados!';
   } else if (type === 'buyFertilizer') {
     if (next.coins < FERTILIZER_PRICE) return fail('Você precisa de mais moedas para comprar adubo.');
     next.supplies ||= { fertilizer: 3 }; next.supplies.fertilizer++; next.coins -= FERTILIZER_PRICE;
@@ -154,6 +175,9 @@ export function action(state, type, payload = {}, now = Date.now()) {
   } else if (type === 'water') {
     if (!plot || !['dry','growing'].includes(plotStatus(plot, now))) return fail('Regue uma plantação que ainda está crescendo.');
     if (plot.watered) return fail('Essa plantação já foi regada.');
+    if (!next.water.amount) return fail(`Sem água no regador. Você recebe +1 água em ${Math.ceil(water.remaining / 1000)}s.`);
+    next.water.amount--;
+    next.water.nextAt ??= now + WATER_REFILL_MS;
     const remaining=growthRemaining(plot,now);
     plot.watered = true; plot.growthStartedAt=now;
     plot.readyAt = now + Math.max(1,remaining - CROPS[plot.crop].duration * .25);
