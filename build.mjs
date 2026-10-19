@@ -1,0 +1,13 @@
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const base=new URL('./',import.meta.url);
+const read=name=>readFile(new URL(name,base),'utf8');
+const modules=await Promise.all(['game','art','app'].map(name=>read(`public/${name}.js`)));
+const source=modules.map(code=>code.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
+let html=await read('public/index.html');
+html=html.replace('<link rel="stylesheet" href="./style.css">',`<style>${await read('public/style.css')}</style>`);
+html=html.replace('<link rel="icon" type="image/svg+xml" href="./favicon.svg">',`<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(await read('public/favicon.svg'))}">`);
+html=html.replace('<script type="module" src="./app.js"></script>',`<script defer>document.addEventListener('DOMContentLoaded',()=>{\n${source}\n});</script>`);
+await mkdir(new URL('dist/',base),{recursive:true});
+await writeFile(new URL('dist/JOGAR.html',base),html);
+console.log(`Versão independente criada: ${fileURLToPath(new URL('dist/JOGAR.html',base))}`);

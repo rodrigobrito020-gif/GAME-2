@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#36654a">
+  <meta name="description" content="Um pequeno sítio, grandes colheitas. Plante, cuide e faça sua fazenda crescer neste jogo de navegador.">
+  <title>Sítio Aurora · GAME-2</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Sítio Aurora, início"><span class="brand-mark" aria-hidden="true">✳</span><span>Sítio <b>Aurora</b><small>UM CANTINHO PARA CULTIVAR</small></span></a>
+    <div class="profile"><span class="avatar" aria-hidden="true">🌻</span><div><b>Seu pequeno sítio</b><span>Bom ter você por aqui.</span></div></div>
+    <div class="balances"><div class="balance coins"><span aria-hidden="true">●</span><div><small>SUAS MOEDAS</small><b id="coins">160</b></div></div><div class="balance level"><span aria-hidden="true">✦</span><div><small>NÍVEL <b id="level">1</b></small><div class="xp-track"><i id="xp-fill"></i></div><span id="xp-label">0 / 30 XP</span></div></div></div>
+  </header>
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="welcome"><span class="eyebrow">DEVAGAR, A VIDA FLORESCE</span><h1>Seu dia merece<br>uma boa <em>colheita.</em></h1><p>Plante um pouquinho.<br>Cuide com carinho. Veja crescer.</p><span class="sun-doodle" aria-hidden="true">☀</span></div>
+      <section class="quest-card"><div class="section-label"><span>✧ PRIMEIROS PASSOS</span><b id="quest-count">0/3</b></div><div id="quests"></div><p class="quest-footer">Cada pequeno começo conta.</p></section>
+      <section class="tip"><span aria-hidden="true">☘</span><div><b>Uma dica de quem planta</b><p>Regar adianta o crescimento em 25%. Sua colheita também cresce quando você sai!</p></div></section>
+      <button id="help" class="help-button"><span>?</span> Como jogar</button>
+      <div id="save-status" class="save-status" role="status">✓ Progresso salvo neste navegador</div>
+    </aside>
+    <section class="farm-column" aria-label="Sua fazenda">
+      <div class="farm-topline"><div><span class="live-dot"></span><b>A sua fazenda</b><span class="divider">/</span><span id="plot-count">9 canteiros</span></div><span class="weather">☀ <span>Um lindo dia para plantar</span></span></div>
+      <div class="farm-stage">
+        <div class="map-location"><span>⌂</span><div><b>Recanto da Aurora</b><small>Onde tudo começa</small></div></div>
+        <div class="ready-badge" id="ready-count" role="status"></div>
+        <svg id="farm" viewBox="0 0 1400 820" role="group" aria-label="Mapa isométrico da fazenda. Use Tab e Enter para escolher um canteiro."></svg>
+        <div class="map-caption"><span class="leaf-dot">☘</span> <span id="map-hint">Clique na cenoura pronta para colher</span></div>
+        <div class="zoom-controls"><button id="zoom-out" aria-label="Afastar a câmera">−</button><button id="zoom-in" aria-label="Aproximar a câmera">+</button></div>
+      </div>
+      <div class="tool-shelf"><div class="tools" aria-label="Ferramentas"><button data-tool="smart" class="tool active" aria-pressed="true"><span data-icon="hand"></span><b>Cuidar</b><kbd>1</kbd></button><button data-tool="plant" class="tool" aria-pressed="false"><span data-icon="sprout"></span><b>Plantar</b><kbd>2</kbd></button><button data-tool="water" class="tool" aria-pressed="false"><span data-icon="water"></span><b>Regar</b><kbd>3</kbd></button><button data-tool="harvest" class="tool" aria-pressed="false"><span data-icon="basket"></span><b>Colher</b><kbd>4</kbd></button></div><div class="shelf-separator"></div><button id="open-shop" class="shelf-action"><span class="store-icon" data-icon="shop"></span><span><b>Loja de sementes</b><small>Todo começo cabe aqui</small></span><span class="arrow" data-icon="arrow"></span></button><button id="open-storage" class="shelf-action storage-action"><span class="store-icon" data-icon="crate"></span><span><b>Armazém <i id="storage-count">0</i></b><small>Guarde e venda sua colheita</small></span><span class="arrow" data-icon="arrow"></span></button></div>
+      <section class="seed-section"><div class="seed-heading"><div><span class="eyebrow">ESCOLHA O QUE VAI FLORESCER</span><h2>Sua bolsa de sementes</h2></div><span class="seed-note">Selecione uma semente e clique na terra</span></div><div id="seed-tray" class="seed-tray"></div></section>
+      <footer class="farm-footer"><span>Feito para cultivar bons momentos.</span><span>GAME-2 <i>·</i> Protótipo 0.1</span></footer>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="modal"><div class="modal-header"><div><span class="eyebrow" id="modal-eyebrow">SEU SÍTIO</span><h2 id="modal-title"></h2></div><button id="close-modal" class="close-button" aria-label="Fechar janela">×</button></div><div id="modal-body"></div></dialog>
+</body>
+</html>
