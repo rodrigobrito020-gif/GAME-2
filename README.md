@@ -6,6 +6,8 @@ Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuida
 
 A interface ocupa toda a janela do navegador. Cada fazenda começa com os recursos iniciais descritos abaixo.
 
+As melhorias combinadas para as próximas etapas estão em [ATUALIZACOES_FUTURAS.txt](ATUALIZACOES_FUTURAS.txt), com os pedidos pendentes e os detalhes que ainda precisam ser definidos.
+
 ## Jogar
 
 No pacote, extraia a pasta e abra **JOGAR.html** no Chrome, Edge ou Firefox atualizado. Se baixar o código pelo GitHub, a entrada pronta é **index.html**. O HTML inclui código, interface, biblioteca 3D e recursos visuais; não faz downloads durante o jogo. A visão 3D requer WebGL 2. Se o navegador não conseguir iniciar o renderizador, o jogo avisa e abre a fazenda 2D compatível.
