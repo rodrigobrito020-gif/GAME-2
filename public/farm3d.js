@@ -7,7 +7,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
   const host=svg.parentElement, canvas=document.createElement('canvas');
   canvas.id='farm-canvas'; canvas.setAttribute('aria-label','Fazenda em 3D com fazendeiro e ferramentas animadas');
   let renderer;
-  try { renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'low-power'}); }
+  try { renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'}); }
   catch { return null; }
   host.insertBefore(canvas,svg); host.classList.add('has-3d');svg.setAttribute('preserveAspectRatio','none'); svg.setAttribute('aria-label','Fazenda 3D. Selecione uma ferramenta e um canteiro. Tab e Enter também funcionam.');
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.25)); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -17,14 +17,14 @@ export function createFarm3D(svg, { onStatus, onError }) {
   const sun=new THREE.DirectionalLight(0xffe8c3,2.7); sun.position.set(-18,32,20); sun.castShadow=true;
   Object.assign(sun.shadow.camera,{left:-36,right:36,top:36,bottom:-36,near:1,far:90});
   sun.shadow.mapSize.set(1024,1024); renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;sun.shadow.normalBias=.05; sun.shadow.bias=-.0002; scene.add(sun);
-  const camera=new THREE.OrthographicCamera(-18,18,11,-11,.1,140),cameraFocus=new THREE.Vector3();let cameraPinned=false; camera.position.set(24,32,34); camera.lookAt(cameraFocus);
+  const camera=new THREE.OrthographicCamera(-18,18,11,-11,.1,140),cameraFocus=new THREE.Vector3();let cameraPinned=false,panX=0,panY=0,projectionDirty=false; camera.position.set(24,32,34); camera.lookAt(cameraFocus);
   const materials=new Map(), geometries=new Set(), textures=[];let woodMap=null,roofMap=null;
   const woodColors=new Set(['#83532b','#a26931','#d49a49','#8f5c31','#895b30','#ba8045','#754f31','#b88445','#c48c4b','#98603a','#ad6739','#8a5a33']);
   const roofColors=new Set(['#b8572e','#b44c32','#b56837','#804a32']);
   const mat=(color,extra={})=>{const surface=woodColors.has(color)?woodMap:roofColors.has(color)?roofMap:null,options={...(surface?{map:surface}:{}),...extra};const key=JSON.stringify([color,Object.fromEntries(Object.entries(options).map(([k,v])=>[k,v?.isTexture?v.uuid:v]))]);if(!materials.has(key))materials.set(key,new THREE.MeshStandardMaterial({color,roughness:.82,...options}));return materials.get(key);};
   const mesh=(geometry,color,parent,x=0,y=0,z=0,extra={})=>{geometries.add(geometry);const m=new THREE.Mesh(geometry,mat(color,extra));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;};
   const box=(p,c,x,y,z,w,h,d)=>mesh(new THREE.BoxGeometry(w,h,d),c,p,x,y,z);
-  const ball=(p,c,x,y,z,r,sx=1,sy=1,sz=1)=>{const m=mesh(new THREE.IcosahedronGeometry(r,2),c,p,x,y,z);m.scale.set(sx,sy,sz);return m;};
+  const ball=(p,c,x,y,z,r,sx=1,sy=1,sz=1,detail=2)=>{const m=mesh(new THREE.IcosahedronGeometry(r,detail),c,p,x,y,z);m.scale.set(sx,sy,sz);return m;};
   const cylinder=(p,c,x,y,z,r1,r2,h,n=8)=>mesh(new THREE.CylinderGeometry(r1,r2,h,n),c,p,x,y,z);
   const group=(p,x=0,y=0,z=0)=>{const g=new THREE.Group();g.position.set(x,y,z);p.add(g);return g;};
   const bar=(p,c,a,b,r=.04)=>{const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),v=end.clone().sub(start);const m=cylinder(p,c,0,0,0,r,r,v.length());m.position.copy(start.add(end).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.normalize());return m;};
@@ -107,8 +107,14 @@ export function createFarm3D(svg, { onStatus, onError }) {
   // remain separate so animation does not rebuild geometry every frame.
   scene.updateMatrixWorld(true);
   const animated=new Set([...rings,water]);millRotor.traverse(o=>animated.add(o));trees.forEach(({leaves})=>leaves.traverse(o=>animated.add(o)));
+  const crownGeometry=new THREE.IcosahedronGeometry(1,2),crownBatches=new Map(),crownMatrix=new THREE.Matrix4(),crownScale=new THREE.Vector3();geometries.add(crownGeometry);
+  for(const {leaves}of trees)leaves.traverse(node=>{if(!node.isMesh)return;const radius=node.geometry.parameters.radius;let batch=crownBatches.get(node.material);if(!batch){batch={material:node.material,entries:[]};crownBatches.set(node.material,batch);}batch.entries.push({node,radius});node.visible=false;node.geometry.dispose();geometries.delete(node.geometry);node.geometry=crownGeometry;});
+  for(const batch of crownBatches.values()){batch.mesh=new THREE.InstancedMesh(crownGeometry,batch.material,batch.entries.length);batch.mesh.castShadow=true;batch.mesh.receiveShadow=true;batch.mesh.frustumCulled=false;batch.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(batch.mesh);}
+  function updateCrowns(){for(const {leaves}of trees)leaves.updateMatrixWorld(true);for(const batch of crownBatches.values()){batch.entries.forEach(({node,radius},i)=>{crownMatrix.copy(node.matrixWorld).scale(crownScale.setScalar(radius));batch.mesh.setMatrixAt(i,crownMatrix);});batch.mesh.instanceMatrix.needsUpdate=true;}}
+  updateCrowns();
+  batchLocalGeometry(millRotor);
   const buckets=new Map(),originals=[];
-  scene.traverse(o=>{if(!o.isMesh||o.isInstancedMesh||animated.has(o))return;const geometry=(o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone());geometry.applyMatrix4(o.matrixWorld);if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(geometry);originals.push(o);});
+  scene.traverse(o=>{if(!o.isMesh||!o.visible||o.isInstancedMesh||animated.has(o)||o.parent===millRotor)return;const geometry=(o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone());geometry.applyMatrix4(o.matrixWorld);if(!buckets.has(o.material))buckets.set(o.material,[]);buckets.get(o.material).push(geometry);originals.push(o);});
   for(const [material,parts]of buckets){const geometry=mergeGeometries(parts,false);if(geometry){geometries.add(geometry);const m=new THREE.Mesh(geometry,material);m.castShadow=true;m.receiveShadow=true;scene.add(m);}parts.forEach(g=>g.dispose());}
   originals.forEach(o=>{o.removeFromParent();o.geometry.dispose();geometries.delete(o.geometry);});
   const soilMap=texture('soil');
@@ -132,12 +138,29 @@ export function createFarm3D(svg, { onStatus, onError }) {
   beds.receiveShadow=true;ridges.receiveShadow=true;scene.add(beds,ridges);
   PLOT_LAYOUT.forEach((pos,i)=>{dummy.position.set(pos.x,.08,pos.z);dummy.rotation.set(0,0,0);dummy.scale.setScalar(1);dummy.updateMatrix();beds.setMatrixAt(i,dummy.matrix);for(let j=0;j<4;j++){dummy.position.set(pos.x-.8+j*.52,.175,pos.z);dummy.updateMatrix();ridges.setMatrixAt(i*4+j,dummy.matrix);}});
   function clear(g){for(const child of [...g.children]){child.traverse(o=>{if(o.geometry){o.geometry.dispose();geometries.delete(o.geometry);}});g.remove(child);}}
+  function batchLocalGeometry(root){
+    root.updateWorldMatrix(true,true);const sprites=[];root.traverse(o=>{if(o.isSprite)sprites.push(o);});sprites.forEach(o=>root.attach(o));const inverse=new THREE.Matrix4().copy(root.matrixWorld).invert(),matrix=new THREE.Matrix4(),batches=new Map();
+    root.traverse(o=>{if(!o.isMesh)return;const geometry=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();geometry.applyMatrix4(matrix.multiplyMatrices(inverse,o.matrixWorld));if(!batches.has(o.material))batches.set(o.material,[]);batches.get(o.material).push(geometry);});
+    sprites.forEach(o=>root.remove(o));clear(root);sprites.forEach(o=>root.add(o));for(const [material,parts]of batches){const geometry=mergeGeometries(parts,false);parts.forEach(p=>p.dispose());if(!geometry)continue;geometries.add(geometry);const m=new THREE.Mesh(geometry,material);m.castShadow=true;m.receiveShadow=true;root.add(m);}
+  }
+  function batchRig(root){
+    for(const child of [...root.children])if(!child.isMesh)batchRig(child);
+    const batches=new Map();for(const child of [...root.children]){if(!child.isMesh)continue;child.updateMatrix();const geometry=child.geometry.index?child.geometry.toNonIndexed():child.geometry.clone();geometry.applyMatrix4(child.matrix);if(!batches.has(child.material))batches.set(child.material,[]);batches.get(child.material).push(geometry);child.geometry.dispose();geometries.delete(child.geometry);root.remove(child);}
+    for(const [material,parts]of batches){const geometry=mergeGeometries(parts,false);parts.forEach(p=>p.dispose());if(!geometry)continue;geometries.add(geometry);const m=new THREE.Mesh(geometry,material);m.receiveShadow=true;root.add(m);}
+  }
+  // Soft contact shadows follow characters without redrawing the entire sun shadow map.
+  const contactCanvas=document.createElement('canvas');contactCanvas.width=contactCanvas.height=64;
+  const contactContext=contactCanvas.getContext('2d'),contactGradient=contactContext.createRadialGradient(32,32,3,32,32,32);
+  contactGradient.addColorStop(0,'rgba(28,43,22,.32)');contactGradient.addColorStop(1,'rgba(28,43,22,0)');contactContext.fillStyle=contactGradient;contactContext.fillRect(0,0,64,64);
+  const contactTexture=new THREE.CanvasTexture(contactCanvas);textures.push(contactTexture);
+  const contactMaterial=new THREE.MeshBasicMaterial({map:contactTexture,transparent:true,depthWrite:false});materials.set('contact-shadow',contactMaterial);
+  function contactShadow(root,size){const geometry=new THREE.PlaneGeometry(size,size);geometries.add(geometry);const shadow=new THREE.Mesh(geometry,contactMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.025;root.add(shadow);}
   function batchCrops(){
     crops.updateWorldMatrix(true,true);const batches=new Map();
     crops.traverse(o=>{if(!o.isMesh)return;const geometry=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();geometry.applyMatrix4(o.matrixWorld);if(!batches.has(o.material))batches.set(o.material,[]);batches.get(o.material).push(geometry);});
     clear(crops);for(const [material,parts]of batches){const geometry=mergeGeometries(parts,false);parts.forEach(p=>p.dispose());if(!geometry)continue;geometries.add(geometry);const m=new THREE.Mesh(geometry,material);m.castShadow=true;m.receiveShadow=true;crops.add(m);}
   }
-  function leaf(p,x,y,z,angle=0,size=1){const l=ball(p,'#5d9d35',x,y,z,.2,.45,.25,1.7);l.rotation.y=angle;l.rotation.z=.3;l.scale.multiplyScalar(size);return l;}
+  function leaf(p,x,y,z,angle=0,size=1){const l=ball(p,'#5d9d35',x,y,z,.2,.45,.25,1.7,1);l.rotation.y=angle;l.rotation.z=.3;l.scale.multiplyScalar(size);return l;}
   function plant(p,id,maturity){const size=.35+maturity*.65;p.scale.setScalar(size);bar(p,'#629734',[0,0,0],[0,.55,0],.035);leaf(p,-.18,.23,0,.6);leaf(p,.18,.33,0,-.6);
     if(id==='alfalfa'||id==='soybean'){for(let j=0;j<4;j++){const x=Math.sin(j*2)*.15,z=Math.cos(j*2)*.15;leaf(p,x,.25+j*.08,z,j,1);ball(p,id==='soybean'?'#b3c975':'#a77cc1',x,.45+j*.06,z,id==='soybean'?.07:.05,1,id==='soybean'?1.6:1,1);}}
     else if(id==='corn'||id==='wheat'){for(let j=0;j<3;j++){bar(p,'#79a23a',[(j-1)*.22,0,0],[(j-1)*.22,.85,0],.035);ball(p,id==='corn'?'#f7c73d':'#e4bb57',(j-1)*.22,.68,.08,.16,.65,1.6,.65);leaf(p,(j-1)*.23,.45,.1,j);}}
@@ -173,25 +196,36 @@ export function createFarm3D(svg, { onStatus, onError }) {
       if(sheep)ball(head,'#fff5dd',0,.19,-.02,.23,1.1,.6,1);bar(p,sheep?'#e9dfc7':'#665747',[0,.95,-.65],[.08,.53,-.85],.04);
     }
   }
-  let currentState,signature='';
-  function hitMarkup(){if(!currentState)return;const project=v=>{v.project(camera);return[(v.x+1)*700,(1-v.y)*410];};
-    const polygons=currentState.plots.map((p,i)=>{const pos=plotPosition(i),points=[[-1.12,-1.12],[1.12,-1.12],[1.12,1.12],[-1.12,1.12]].map(([x,z])=>project(new THREE.Vector3(pos.x+x,.2,pos.z+z)).join(',')).join(' ');const status=plotStatus(p),label=!p.unlocked?`Expandir canteiro ${i+1} por ${expansionPrice(currentState)} moedas`:`Canteiro ${i+1}${p.crop?', '+CROPS[p.crop].name:''}`;const [sx,sy]=project(pos.clone().setY(.95));const sw=1.9/(camera.right-camera.left)*1400,sh=.63/(camera.top-camera.bottom)*820;const plaque=p.unlocked?'':`<rect class="expansion-hitbox" x="${sx-sw/2}" y="${sy-sh/2}" width="${sw}" height="${sh}"/>`;return `<g class="plot ${status} ${p.watered?'watered':''}" data-plot="${i}" tabindex="0" role="button" aria-label="${label}"><title>${label}</title><polygon class="tile-top" points="${points}"/>${plaque}</g>`;}).join('');
-    const focus=document.activeElement?.dataset.plot;svg.querySelector('#plots').innerHTML=polygons;
-    svg.querySelector('#animals').innerHTML=currentState.animals.map((a,i)=>{const pos=animalPosition(i),[x,y]=project(pos.clone().add(new THREE.Vector3(0,.5,0)));return `<g class="farm-animal" role="button" tabindex="0" data-animal="${i}" data-enclosure="${a.type==='cow'?'cattle':a.type==='sheep'?'sheep':'chickens'}" aria-label="${a.type==='cow'?'Vaca no curral':a.type==='sheep'?'Ovelha no aprisco':'Galinha no galinheiro'}"><title>${ANIMALS[a.type].name}</title><rect x="${x-25}" y="${y-30}" width="50" height="60"/></g>`;}).join('');
-    const [hx,hy]=project(new THREE.Vector3(-5.2,2,-6)),[mx,my]=project(new THREE.Vector3(9,2,-6));svg.querySelector('#buildings').innerHTML=`<g role="button" tabindex="0" data-building="house" aria-label="Casa: nome da fazenda"><rect x="${hx-45}" y="${hy-40}" width="90" height="70"/></g><g role="button" tabindex="0" data-building="mill" aria-label="Moinho de ração"><rect x="${mx-40}" y="${my-40}" width="80" height="80"/></g>`;
-    const [lx,ly]=project(new THREE.Vector3(-15,1,-4.8)),lw=4.5/(camera.right-camera.left)*1400,lh=1.125/(camera.top-camera.bottom)*820;
-    svg.querySelector('#pond').innerHTML=`<g role="button" tabindex="0" data-building="pond" aria-label="${currentState.pond?.owned?'Cuidar do lago':'Comprar lago por '+POND.cost+' moedas'}"><rect x="${lx-lw/2}" y="${ly-lh/2}" width="${lw}" height="${lh}"/></g>`;
-    if(focus!==undefined)svg.querySelector(`[data-plot="${focus}"]`)?.focus({preventScroll:true});
+  let currentState,signature='',animalSignature='';
+  const svgNS='http://www.w3.org/2000/svg',projectionPoint=new THREE.Vector3();let hitPlots=[],hitAnimals=[],hitAnimalKey='',hitBuildings=null,hitPond=null;
+  function attribute(node,key,value){value=String(value);if(node.getAttribute(key)!==value)node.setAttribute(key,value);}
+  function rectAt(node,x,y,w,h){attribute(node,'x',x-w/2);attribute(node,'y',y-h/2);attribute(node,'width',w);attribute(node,'height',h);}
+  function projectedPoint(x,y,z){projectionPoint.set(x,y,z).project(camera);return[(projectionPoint.x+1)*700,(1-projectionPoint.y)*410];}
+  function hitMarkup(positionsOnly=false){if(!currentState)return;
+    if(hitPlots.length!==currentState.plots.length){svg.querySelector('#plots').innerHTML=currentState.plots.map((_,i)=>`<g class="plot" data-plot="${i}" tabindex="0" role="button"><title></title><polygon class="tile-top"/></g>`).join('');hitPlots=[...svg.querySelectorAll('[data-plot]')].map(node=>({node,title:node.querySelector('title'),polygon:node.querySelector('polygon'),plaque:null}));positionsOnly=false;}
+    currentState.plots.forEach((p,i)=>{const pos=PLOT_LAYOUT[i],h=hitPlots[i];
+      if(!positionsOnly){const status=plotStatus(p),label=!p.unlocked?`Expandir canteiro ${i+1} por ${expansionPrice(currentState)} moedas`:`Canteiro ${i+1}${p.crop?', '+CROPS[p.crop].name:''}`;attribute(h.node,'class',`plot ${status} ${p.watered?'watered':''}`);attribute(h.node,'aria-label',label);if(h.title.textContent!==label)h.title.textContent=label;
+        if(!p.unlocked&&!h.plaque){h.plaque=document.createElementNS(svgNS,'rect');h.plaque.setAttribute('class','expansion-hitbox');h.node.append(h.plaque);}else if(p.unlocked&&h.plaque){h.plaque.remove();h.plaque=null;}}
+      attribute(h.polygon,'points',[[-1.12,-1.12],[1.12,-1.12],[1.12,1.12],[-1.12,1.12]].map(([x,z])=>projectedPoint(pos.x+x,.2,pos.z+z).join(',')).join(' '));
+      if(h.plaque){const [x,y]=projectedPoint(pos.x,.95,pos.z);rectAt(h.plaque,x,y,1.9/(camera.right-camera.left)*1400,.63/(camera.top-camera.bottom)*820);}
+    });
+    const animalKey=currentState.animals.map(a=>a.type).join(',');
+    if(animalKey!==hitAnimalKey){hitAnimalKey=animalKey;svg.querySelector('#animals').innerHTML=currentState.animals.map((a,i)=>`<g class="farm-animal" role="button" tabindex="0" data-animal="${i}" data-enclosure="${a.type==='cow'?'cattle':a.type==='sheep'?'sheep':'chickens'}" aria-label="${a.type==='cow'?'Vaca no curral':a.type==='sheep'?'Ovelha no aprisco':'Galinha no galinheiro'}"><title>${ANIMALS[a.type].name}</title><rect/></g>`).join('');hitAnimals=[...svg.querySelectorAll('[data-animal] rect')];}
+    hitAnimals.forEach((node,i)=>{const p=animalPosition(i),[x,y]=projectedPoint(p.x,.5,p.z);rectAt(node,x,y,50,60);});
+    if(!hitBuildings){svg.querySelector('#buildings').innerHTML='<g role="button" tabindex="0" data-building="house" aria-label="Casa: nome da fazenda"><rect/></g><g role="button" tabindex="0" data-building="mill" aria-label="Moinho de ração"><rect/></g>';hitBuildings=[...svg.querySelectorAll('#buildings rect')];}
+    const [hx,hy]=projectedPoint(-5.2,2,-6),[mx,my]=projectedPoint(9,2,-6);rectAt(hitBuildings[0],hx,hy-5,90,70);rectAt(hitBuildings[1],mx,my,80,80);
+    if(!hitPond){svg.querySelector('#pond').innerHTML='<g role="button" tabindex="0" data-building="pond"><rect/></g>';hitPond=svg.querySelector('#pond rect');}
+    const [lx,ly]=projectedPoint(-15,1,-4.8);rectAt(hitPond,lx,ly,4.5/(camera.right-camera.left)*1400,1.125/(camera.top-camera.bottom)*820);if(!positionsOnly)attribute(hitPond.parentNode,'aria-label',currentState.pond?.owned?'Cuidar do lago':'Comprar lago por '+POND.cost+' moedas');
   }
   function animalPosition(i){const type=currentState.animals[i].type,index=currentState.animals.slice(0,i).filter(a=>a.type===type).length;return type==='cow'?new THREE.Vector3(16+index%3*1.65,0,-3.7+Math.floor(index/3)*1.9):type==='sheep'?new THREE.Vector3(16+index%3*1.65,0,8.5+Math.floor(index/3)*1.8):new THREE.Vector3(5.8+index%3*1.7,0,3.4+Math.floor(index/3)*1.8);}
-  function update(state){currentState=state;updateAppearance(state.farmer||'male');updatePond(state);const now=Date.now(),key=JSON.stringify([state.plots.map(p=>[p.unlocked,p.crop,p.watered,plotStatus(p,now),Math.floor(progress(p,now)*4),plotCare(p,now)]),state.animals.map(a=>[a.type,animalProduction(a,now).hungry,animalProduction(a,now).amount]),state.pond?.owned]);
-    if(key===signature)return;signature=key;renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;clear(crops);clear(signs);clear(animals);
+  function update(state){currentState=state;updateAppearance(state.farmer||'male');updatePond(state);const now=Date.now(),key=JSON.stringify([state.plots.map(p=>[p.unlocked,p.crop,p.watered,plotStatus(p,now),Math.floor(progress(p,now)*4),plotCare(p,now)]),state.animals.map(a=>[a.type,animalProduction(a,now).hungry]),state.pond?.owned]);
+    if(key===signature)return;signature=key;renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;clear(crops);clear(signs);
     state.plots.forEach((p,i)=>{const pos=plotPosition(i),status=plotStatus(p,now);beds.setColorAt(i,new THREE.Color(!p.unlocked?'#c0b2a0':p.watered?'#92928d':'#ffffff'));beds.instanceColor.needsUpdate=true;
       if(!p.unlocked){if(i===state.plots.findIndex(p=>!p.unlocked))marker(pos,'locked');return;}if(!p.crop)return;const maturity=status==='ready'?1:Math.max(.1,progress(p,now));for(const [x,z]of[[-.58,-.58],[.55,-.55],[-.55,.55],[.55,.55]]){const g=group(crops,pos.x+x,.17,pos.z+z);plant(g,p.crop,maturity);}
       marker(pos,status);const care=plotCare(p,now);if(care.weeds)for(let j=0;j<3;j++){const g=group(crops,pos.x-.8+j*.75,.18,pos.z);leaf(g,0,.1,0,j,.9);}
       if(care.pests)for(let j=0;j<2;j++)ball(crops,'#6d3d78',pos.x-.4+j*.8,.7,pos.z,.07);
     });
-    batchCrops();state.animals.forEach((a,i)=>{const pos=animalPosition(i),g=group(animals,pos.x,0,pos.z);animal(g,a.type);g.userData.phase=i*1.8;g.userData.homeX=pos.x; if(animalProduction(a,now).hungry)ball(g,'#df8255',0,1.3,0,.1);});hitMarkup();
+    batchCrops();batchLocalGeometry(signs);const nextAnimals=JSON.stringify(state.animals.map(a=>[a.type,animalProduction(a,now).hungry]));if(nextAnimals!==animalSignature){animalSignature=nextAnimals;clear(animals);state.animals.forEach((a,i)=>{const pos=animalPosition(i),g=group(animals,pos.x,0,pos.z);animal(g,a.type);g.userData.phase=i*1.8;g.userData.homeX=pos.x; if(animalProduction(a,now).hungry)ball(g,'#df8255',0,1.3,0,.1);batchRig(g);contactShadow(g,a.type==='chicken'?1:1.9);});}hitMarkup();
   }
   // Farmer rig: tools attach to the hand, never to the body or world.
   const farmer=group(scene,2.4,0,13.9);farmer.scale.setScalar(1.3);
@@ -207,7 +241,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
   let appearance='';
   function updateAppearance(style){if(style===appearance)return;appearance=style;const female=style==='female';braid.visible=female;
     const colors={'438cb0':'#64a18a','4485a0':'#4a8975','336e91':'#477e70','edc45b':'#e49d83'};
-    farmer.traverse(o=>{if(!o.isMesh)return;o.userData.originalMaterial??=o.material;const original=o.userData.originalMaterial;const color=original.color.getHexString();o.material=female&&colors[color]?mat(colors[color]):original;});
+    farmer.traverse(o=>{if(!o.isMesh||o.material===contactMaterial)return;o.userData.originalMaterial??=o.material;const original=o.userData.originalMaterial;const color=original.color.getHexString();o.material=female&&colors[color]?mat(colors[color]):original;});
     canvas.dataset.farmerStyle=style;renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;
   }
   const held=group(arms[1],0,-.46,.03),toolModels={};
@@ -219,6 +253,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
   g=toolGroup('weed');bar(g,'#af7d40',[0,-.05,0],[0,.65,.2],.035);box(g,'#98aca3',0,.67,.24,.35,.07,.22);
   g=toolGroup('spray');cylinder(g,'#e6b071',0,-.05,.15,.13,.16,.35,10);box(g,'#648d84',0,.18,.2,.2,.12,.16);bar(g,'#647c79',[0,.18,.2],[0,.18,.5],.025);
   g=toolGroup('fertilize');ball(g,'#e4d3a4',0,-.14,.2,.25,.8,1.2,.7);box(g,'#89a94a',0,-.1,.37,.16,.16,.03);cylinder(g,'#b39a65',0,.13,.2,.08,.1,.08);
+  batchRig(farmer);contactShadow(farmer,1.05);
   const particles=group(scene),particleBits=[];for(let i=0;i<28;i++){const b=ball(particles,'#8bdef2',0,0,0,.035);b.visible=false;particleBits.push(b);}
   const selection=mesh(new THREE.TorusGeometry(.9,.035,4,40),'#fff0a4',scene,0,.2,0);selection.rotation.x=-Math.PI/2;selection.visible=false;
   const queue=[];let job=null,phase='idle',elapsed=0,impact=false,route=[],walkTime=0,selected='smart',disposed=false,raf=0,last=performance.now(),zoom=1;
@@ -271,14 +306,16 @@ export function createFarm3D(svg, { onStatus, onError }) {
   function cancelTasks(){queue.length=0;job=null;impact=false;route=[];manualRoute=[];heldKeys.clear();setPhase('idle');selection.visible=false;body.rotation.x=0;body.position.y=0;arms.forEach(a=>a.rotation.x=0);legs.forEach(l=>l.rotation.x=0);held.rotation.x=0;particleBits.forEach(p=>p.visible=false);equip(selected);}
   function moveTo(clientX,clientY){const rect=canvas.getBoundingClientRect(),ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((clientX-rect.left)/rect.width*2-1,1-(clientY-rect.top)/rect.height*2),camera);const target=ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),new THREE.Vector3());if(!target)return;canvas.dataset.moveTargetX=target.x.toFixed(3);canvas.dataset.moveTargetZ=target.z.toFixed(3);
     const planned=findRoute(farmer.position,target);if(!planned){onError('Escolha um trecho livre de chão para caminhar.');return;}cameraPinned=false;cancelTasks();manualRoute=planned;setPhase('moving');onStatus('Caminhando · WASD ou setas também movem o personagem.');}
-  function panBy(dx,dy){
-    const rect=canvas.getBoundingClientRect(),ray=new THREE.Raycaster(),plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
-    ray.setFromCamera(new THREE.Vector2(0,0),camera);const from=ray.ray.intersectPlane(plane,new THREE.Vector3());
-    ray.setFromCamera(new THREE.Vector2(dx*2/rect.width,-dy*2/rect.height),camera);const to=ray.ray.intersectPlane(plane,new THREE.Vector3());if(!from||!to)return;
-    const next=cameraFocus.clone().add(from.sub(to));next.x=THREE.MathUtils.clamp(next.x,-18,18);next.z=THREE.MathUtils.clamp(next.z,-14,14);
-    camera.position.add(next.clone().sub(cameraFocus));cameraFocus.copy(next);cameraPinned=true;camera.updateMatrixWorld();hitMarkup();
+  const panRay=new THREE.Raycaster(),panPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0),panFrom=new THREE.Vector3(),panTo=new THREE.Vector3();let viewWidth=1,viewHeight=1;
+  function flushPan(){if(!panX&&!panY)return;
+    panRay.setFromCamera(new THREE.Vector2(0,0),camera);panRay.ray.intersectPlane(panPlane,panFrom);
+    panRay.setFromCamera(new THREE.Vector2(panX*2/viewWidth,-panY*2/viewHeight),camera);panRay.ray.intersectPlane(panPlane,panTo);panX=panY=0;
+    const next=cameraFocus.clone().add(panFrom.sub(panTo));next.x=THREE.MathUtils.clamp(next.x,-18,18);next.z=THREE.MathUtils.clamp(next.z,-14,14);
+    camera.position.add(next.clone().sub(cameraFocus));cameraFocus.copy(next);camera.updateMatrixWorld();projectionDirty=true;
     canvas.dataset.cameraFocusX=cameraFocus.x.toFixed(3);canvas.dataset.cameraFocusZ=cameraFocus.z.toFixed(3);
   }
+  function panBy(dx,dy){panX+=dx;panY+=dy;cameraPinned=true;}
+  function finishPan(){flushPan();if(projectionDirty){hitMarkup(true);projectionDirty=false;}}
   const moveCodes=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight']);
   function keyDown(e){if(!moveCodes.has(e.code)||e.ctrlKey||e.metaKey||e.altKey||document.querySelector('dialog[open]')||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'))return;e.preventDefault();cameraPinned=false;if(job||queue.length)cancelTasks();manualRoute=[];heldKeys.add(e.code);setPhase('moving');}
   function keyUp(e){heldKeys.delete(e.code);}
@@ -293,8 +330,19 @@ export function createFarm3D(svg, { onStatus, onError }) {
     if(!heldKeys.size&&!manualRoute.length){setPhase('idle');onStatus('Arraste para mover a câmera · Clique num canteiro para cuidar');}
   }
   function turnToward(angle,dt){const delta=Math.atan2(Math.sin(angle-farmer.rotation.y),Math.cos(angle-farmer.rotation.y));farmer.rotation.y+=delta*(1-Math.exp(-dt*12));}
-  function tick(now){if(disposed)return;raf=requestAnimationFrame(tick);const dt=Math.min(.25,Math.max(0,(now-last)/1000));last=now;
-    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,t=now/1000;
+  const motionPreference=matchMedia('(prefers-reduced-motion: reduce)'),performanceDiagnostics=new URLSearchParams(location.search).has('performance');
+  let maximumScale=Math.min(devicePixelRatio,1.25),renderScale=maximumScale,frameMean=16.7,qualityWindow=performance.now(),qualitySamples=0,previousFrame=0;
+  function adaptResolution(now){
+    if(previousFrame&&!document.hidden){const frame=now-previousFrame;if(frame<1000){frameMean=frameMean*.85+frame*.15;qualitySamples++;}}
+    previousFrame=now;if(now-qualityWindow<1400||qualitySamples<5)return;
+    const floor=Math.min(maximumScale,.65);let next=renderScale;
+    if(frameMean>24)next=Math.max(floor,renderScale*.82);
+    else if(frameMean<18&&now-qualityWindow>6000)next=Math.min(maximumScale,renderScale/.9);
+    if(Math.abs(next-renderScale)>.025){renderScale=next;renderer.setPixelRatio(renderScale);renderer.setSize(viewWidth,viewHeight,false);qualityWindow=now;qualitySamples=0;}
+    else if(frameMean>=18||renderScale>=maximumScale){qualityWindow=now;qualitySamples=0;}
+  }
+  function tick(now){if(disposed)return;raf=requestAnimationFrame(tick);const dt=Math.min(.25,Math.max(0,(now-last)/1000));last=now;flushPan();
+    const reduced=motionPreference.matches,t=now/1000;
     if(!reduced){trees.forEach(({leaves,phase})=>leaves.rotation.z=Math.sin(t*.75+phase)*.018);rings.forEach((r,i)=>{r.scale.set(1+Math.sin(t*1.2+i)*.12,.65*(1+Math.sin(t*1.2+i)*.12),1);});animals.children.forEach((a,i)=>{a.rotation.y=Math.sin(t*.35+i)*.18;a.position.x=a.userData.homeX+Math.sin(t*.3+i)*.12;a.userData.head.rotation.x=Math.sin(t*.6+i)*.055;a.userData.legs.forEach((l,j)=>l.rotation.x=Math.sin(t*.6+i+j*Math.PI)*.035);});millRotor.rotation.z+=dt*(currentState?.mill?.job?.readyAt>Date.now()?1.3:.15);waterTime.value=t;swimmingFish.forEach(f=>{const a=t*.45+f.userData.phase;f.position.set(Math.cos(a)*3.5,.14,Math.sin(a)*2-.6);f.rotation.y=-a-Math.PI/2;});}
     if(heldKeys.size||manualRoute.length)moveManually(dt);
     else if(phase==='moving')moveManually(dt);
@@ -310,15 +358,16 @@ export function createFarm3D(svg, { onStatus, onError }) {
       particleBits.forEach((b,i)=>{const active=elapsed>.25&&elapsed<1.15;b.visible=active;if(!active)return;const p=plotPosition(job.index),f=(elapsed*2.6+i/28)%1;b.material=mat(job.type==='water'?'#a2e2ef':job.type==='harvest'?'#f9da67':job.type==='spray'?'#d7e7be':'#d9b278');if(job.type==='water'){const tip=toolModels.water.localToWorld(new THREE.Vector3(0,.02,.72));const end=new THREE.Vector3(p.x+(i%5-2)*.16,.2,p.z+(i%4-1.5)*.17);b.position.copy(tip).lerp(end,f);}else b.position.set(p.x+.65-i%5*.18, .9-f*.65, p.z+(i%4-1.5)*.17);});
       if(elapsed>=1.3){job=null;impact=false;body.rotation.x=0;arms.forEach(a=>a.rotation.x=0);held.rotation.x=0;particleBits.forEach(p=>p.visible=false);selection.visible=false;nextJob();}
     }}else if(!reduced){body.position.y=Math.sin(t*2)*.008;}
-    if(now-(tick.lastRender||0)>33){
+    if(!document.hidden){
       const projected=farmer.position.clone().project(camera);
-      if(!cameraPinned&&(Math.abs(projected.x)>.76||Math.abs(projected.y)>.68)){const shift=farmer.position.clone().sub(cameraFocus).setY(0).multiplyScalar(Math.min(.15,dt*1.5));camera.position.add(shift);cameraFocus.add(shift);camera.updateMatrixWorld();hitMarkup();}
-      if((job||phase==='moving')&&now-(tick.lastShadow||0)>100){renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;tick.lastShadow=now;}renderer.render(scene,camera);tick.lastRender=now;canvas.dataset.frames=String(Number(canvas.dataset.frames||0)+1);canvas.dataset.playerX=farmer.position.x.toFixed(3);canvas.dataset.playerZ=farmer.position.z.toFixed(3);canvas.dataset.cameraFocusX=cameraFocus.x.toFixed(3);canvas.dataset.cameraFocusZ=cameraFocus.z.toFixed(3);
+      if(!cameraPinned&&(Math.abs(projected.x)>.76||Math.abs(projected.y)>.68)){const shift=farmer.position.clone().sub(cameraFocus).setY(0).multiplyScalar(Math.min(.15,dt*1.5));camera.position.add(shift);cameraFocus.add(shift);camera.updateMatrixWorld();projectionDirty=true;}
+      if(projectionDirty){hitMarkup(true);projectionDirty=false;}
+      adaptResolution(now);updateCrowns();renderer.render(scene,camera);if(performanceDiagnostics){canvas.dataset.drawCalls=String(renderer.info.render.calls);canvas.dataset.triangles=String(renderer.info.render.triangles);canvas.dataset.renderScale=renderScale.toFixed(2);}canvas.dataset.frames=String(Number(canvas.dataset.frames||0)+1);canvas.dataset.playerX=farmer.position.x.toFixed(3);canvas.dataset.playerZ=farmer.position.z.toFixed(3);canvas.dataset.cameraFocusX=cameraFocus.x.toFixed(3);canvas.dataset.cameraFocusZ=cameraFocus.z.toFixed(3);
     }
   }
-  function resize(){const {width,height}=host.getBoundingClientRect();if(!width||!height)return;renderer.setSize(width,height,false);const aspect=width/height,halfH=Math.max((width<=650?16:26)/aspect,13.5)/zoom,halfW=halfH*aspect;camera.left=-halfW;camera.right=halfW;camera.top=halfH;camera.bottom=-halfH;camera.updateProjectionMatrix();camera.updateMatrixWorld();canvas.dataset.viewHalfWidth=halfW.toFixed(5);canvas.dataset.viewHalfHeight=halfH.toFixed(5);hitMarkup();renderer.render(scene,camera);}
+  function resize(){const {width,height}=host.getBoundingClientRect();if(!width||!height)return;viewWidth=width;viewHeight=height;maximumScale=Math.min(devicePixelRatio,1.25,Math.sqrt(1500000/(width*height)));renderScale=Math.min(renderScale,maximumScale);renderer.setPixelRatio(renderScale);renderer.setSize(width,height,false);const aspect=width/height,halfH=Math.max((width<=650?16:26)/aspect,13.5)/zoom,halfW=halfH*aspect;camera.left=-halfW;camera.right=halfW;camera.top=halfH;camera.bottom=-halfH;camera.updateProjectionMatrix();camera.updateMatrixWorld();canvas.dataset.viewHalfWidth=halfW.toFixed(5);canvas.dataset.viewHalfHeight=halfH.toFixed(5);hitMarkup();renderer.render(scene,camera);}
   function setZoom(value){zoom=value;resize();}
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();queue.length=0;job=null;onError('O navegador perdeu a conexão 3D. Recarregue para continuar; seu progresso foi salvo.');});
   const observer=new ResizeObserver(resize);observer.observe(host);resize();raf=requestAnimationFrame(tick);canvas.dataset.renderer='three';canvas.dataset.actionPhase='idle';canvas.dataset.pending='0';canvas.dataset.completed='0';canvas.setAttribute('aria-busy','false');
-  return {update,selectTool,enqueue,setZoom,panBy,moveTo,cancel:cancelTasks,dispose(){disposed=true;cancelAnimationFrame(raf);document.removeEventListener('keydown',keyDown);document.removeEventListener('keyup',keyUp);window.removeEventListener('blur',clearKeys);document.removeEventListener('visibilitychange',clearKeys);observer.disconnect();renderer.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());expansionMaterials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());},get busy(){return !!job||queue.length>0;}};
+  return {update,selectTool,enqueue,setZoom,panBy,finishPan,moveTo,cancel:cancelTasks,dispose(){disposed=true;cancelAnimationFrame(raf);document.removeEventListener('keydown',keyDown);document.removeEventListener('keyup',keyUp);window.removeEventListener('blur',clearKeys);document.removeEventListener('visibilitychange',clearKeys);observer.disconnect();renderer.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());expansionMaterials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());},get busy(){return !!job||queue.length>0;}};
 }

@@ -90,3 +90,7 @@ O cenário passa a ocupar o viewport, com HUD e ferramentas sobrepostos. A bolsa
 Um gesto de ponteiro distingue clique e arraste com limiar de 6 pixels. O arraste captura o ponteiro e desloca o plano da câmera, atualizando os alvos SVG; suprime a ação do clique ao soltar. O enquadramento é limitado à região da fazenda e permanece após o arraste. Novo movimento ou tarefa do personagem permite retomar o acompanhamento. Não há alteração de economia, progressão, saves ou conteúdo do GAME-1.
 
 Em telas estreitas, o enquadramento inicial aproxima a fazenda para aumentar os alvos por toque; o arraste permite alcançar as laterais. O chão cobre também os limites do enquadramento para não exibir bordas vazias ao movimentar a câmera.
+
+## Atualização 0.8.1 — caminhada e arraste
+
+O usuário identificou travamentos ao caminhar e arrastar a câmera. A atualização remove o limite de aproximadamente 30 FPS, agrupa partes rígidas dos modelos sem remover suas articulações animadas, preserva os alvos acessíveis de clique durante a projeção e acumula os eventos do mouse até o próximo quadro. A resolução do 3D se ajusta ao desempenho; textos e botões permanecem nítidos. Sombras de contato acompanham fazendeiro e animais; sombras do cenário são conservadas em cache. A arte dos cartões e as regras de cultivo permanecem as da versão anterior.

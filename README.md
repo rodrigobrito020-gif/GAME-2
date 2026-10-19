@@ -1,8 +1,8 @@
-# GAME-2 — Colheita Feliz 3D, versão 0.8.0
+# GAME-2 — Colheita Feliz 3D, versão 0.8.1
 
 Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
 
-![Fazenda em toda a janela, com recursos no canto superior direito](docs/images/fazenda-v08.png)
+![Fazenda em toda a janela, com recursos no canto superior direito](docs/images/fazenda-v081.png)
 
 A interface ocupa toda a janela do navegador. Cada fazenda começa com os recursos iniciais descritos abaixo.
 
@@ -23,6 +23,14 @@ A alteração acontece durante a animação, após chegar ao canteiro. É possí
 
 Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 7** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
 
+## Movimento e câmera — versão 0.8.1
+
+A caminhada e o arraste da câmera usam o ritmo de atualização do navegador, sem o limite anterior de cerca de 30 FPS. Os eventos do mouse são acumulados por quadro e os canteiros mantêm os mesmos elementos de clique, inclusive o foco por teclado. Árvores, moinho, personagens e indicadores de colheita usam menos chamadas gráficas.
+
+O cenário conserva as sombras do sol; fazendeiro e animais usam sombras suaves de contato, sem recalcular as sombras da fazenda inteira durante cada passo. A resolução do 3D se adapta ao tempo dos quadros, com recuperação gradual quando há folga. A interface em HTML continua na resolução da tela.
+
+As medições antes/depois, o cenário de teste e suas limitações estão em [docs/DESEMPENHO.md](docs/DESEMPENHO.md). O resultado depende da placa gráfica e do navegador; os testes por software deste ambiente não comprovam 60 FPS no computador de cada jogador.
+
 ## Fazenda em toda a janela — versão 0.8.0
 
 - Cenário ocupa toda a página, sem rolagem da página, no computador e no celular. Janelas de loja, sementes e armazém rolam internamente quando necessário.
@@ -30,7 +38,7 @@ Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar
 - Sementes aparecem ao clicar num canteiro vazio. A seleção planta nesse canteiro; a animação continua consumindo a semente apenas durante a ação. O botão Sementes permite consultar o estoque e acessar a loja.
 - **Segure o botão esquerdo e arraste sobre o mapa** para mover a câmera. O arraste funciona também sobre canteiros, sem colher, plantar ou fazer o personagem andar ao soltar. Clique simples mantém as ações. O enquadramento fica onde foi deixado até um novo comando ao personagem; o zoom continua funcionando.
 
-[Ver a escolha de sementes](docs/images/sementes-v08.png).
+[Ver a escolha de sementes](docs/images/sementes-v081.png).
 
 ## Arte pintada, campo ampliado e moinho — versão 0.7.0
 
@@ -107,7 +115,7 @@ O Chromium gerenciado deste ambiente bloqueia `file://`. O HTML independente é 
 
 ## Visual e desempenho
 
-`public/farm3d.js` constrói os modelos: fazendeiro com rig, seis ferramentas, culturas, casas, cercas, árvores, lago, galinheiro e animais. Luz e sombras são reais. Árvores, água e animais têm movimentos suaves; a preferência de movimento reduzido desliga os movimentos ambientais, preservando a execução das tarefas. Geometria estática é agrupada por material e a grama usa instâncias. O renderizador limita a resolução e atualiza sombras quando necessário.
+`public/farm3d.js` constrói os modelos: fazendeiro com rig, seis ferramentas, culturas, casas, cercas, árvores, lago, galinheiro e animais. Luz e sombras são reais. Árvores, água e animais têm movimentos suaves; a preferência de movimento reduzido desliga os movimentos ambientais, preservando a execução das tarefas. Geometria estática é agrupada por material e a grama usa instâncias. O renderizador adapta a resolução e atualiza as sombras estáticas quando o cenário muda.
 
 A camada SVG transparente acompanha a projeção da câmera e oferece alvos de clique e navegação por teclado. A economia e o salvamento usam as mesmas regras em ambas as vistas. A vista 2D conserva o cenário e o solo gerados da versão 0.3, documentados em `public/assets/provenance.json`. Three.js usa licença MIT, incluída em `licenses/THREE-MIT.txt`.
 

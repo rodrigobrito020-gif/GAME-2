@@ -11,10 +11,13 @@ for(const [width,height] of [[1440,900],[390,844],[844,390]])test(`fazenda ocupa
  expect(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight&&document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('arraste esquerdo sobre a plantação move só a câmera, mantém posição e não vira clique; depois permite plantar',async({page})=>{
- test.setTimeout(90000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/');const canvas=page.locator('#farm-canvas');await expect(canvas).toHaveAttribute('data-player-x',/.+/);
+ test.setTimeout(90000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/?performance=1');const canvas=page.locator('#farm-canvas');await expect(canvas).toHaveAttribute('data-player-x',/.+/);
  const read=()=>canvas.evaluate(c=>({x:Number(c.dataset.cameraFocusX),z:Number(c.dataset.cameraFocusZ),px:Number(c.dataset.playerX),pz:Number(c.dataset.playerZ)}));
+ await expect.poll(()=>canvas.evaluate(c=>Number(c.dataset.drawCalls)),{timeout:15000}).toBeLessThan(140);
+ await page.evaluate(()=>window.originalPlotNodes=[...document.querySelectorAll('[data-plot]')]);
  const before=await saved(page),position=await read(),r=await page.locator('[data-plot="0"] polygon').boundingBox();
  await page.mouse.move(r.x+r.width/2,r.y+r.height/2);await page.mouse.down();await page.mouse.move(r.x+r.width/2+150,r.y+r.height/2+60,{steps:6});await page.mouse.up();
+ expect(await page.evaluate(()=>window.originalPlotNodes.every(node=>node===document.querySelector(`[data-plot="${node.dataset.plot}"]`)))).toBe(true);
  const after=await read();expect(Math.hypot(after.x-position.x,after.z-position.z)).toBeGreaterThan(1);expect(after.px).toBe(position.px);expect(after.pz).toBe(position.pz);await expect(canvas).toHaveAttribute('data-pending','0');await expect(page.locator('#seed-section')).toBeHidden();await expect(page.locator('#modal')).toBeHidden();
  expect((await saved(page)).seeds).toEqual(before.seeds);expect((await saved(page)).harvest).toEqual(before.harvest);expect((await saved(page)).coins).toBe(before.coins);
  await page.waitForTimeout(750);const settled=await read();expect(settled.x).toBe(after.x);expect(settled.z).toBe(after.z);

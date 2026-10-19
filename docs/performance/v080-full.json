@@ -1,0 +1,49 @@
+{
+  "file": "v080/index.html",
+  "scenario": "full",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "warmupSeconds": 8,
+  "idle": {
+    "seconds": 5.2315,
+    "frames": 10,
+    "fps": 1.9114976584153685,
+    "drawsPerFrame": 472,
+    "trianglesPerFrame": 427400
+  },
+  "drag": {
+    "seconds": 21.34459999999404,
+    "frames": 41,
+    "fps": 1.9208605455249312,
+    "drawsPerFrame": 467.0975609756098,
+    "trianglesPerFrame": 426517.56097560975,
+    "removedNodes": 1674
+  },
+  "walking": {
+    "seconds": 3.56129999999702,
+    "frames": 6,
+    "fps": 1.6847780304958921,
+    "drawsPerFrame": 810.6666666666666,
+    "trianglesPerFrame": 709422.6666666666
+  },
+  "errors": [],
+  "diagnostics": {
+    "engine": "three.js r180",
+    "viewHalfWidth": "26.00000",
+    "viewHalfHeight": "14.62500",
+    "renderer": "three",
+    "actionPhase": "idle",
+    "pending": "0",
+    "completed": "0",
+    "farmerStyle": "male",
+    "pondOwned": "false",
+    "shrimpCages": "0",
+    "frames": "89",
+    "playerX": "0.199",
+    "playerZ": "11.032",
+    "cameraFocusX": "-8.560",
+    "cameraFocusZ": "1.963"
+  }
+}

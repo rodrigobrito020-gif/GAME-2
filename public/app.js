@@ -68,7 +68,7 @@ function renderPlots(force=false) {
     if(focus!==undefined) farm.querySelector(`[data-plot="${focus}"]`)?.focus({preventScroll:true});
   }
   state.plots.forEach((p,i)=>{
-    if(p.crop) { const status=plotStatus(p,now), label=`Canteiro ${i+1}, ${CROPS[p.crop].name}, ${status==='ready'?'pronta para colher':status==='dry'?'seca, crescimento pausado; regue para crescer':time(growthRemaining(p,now))+' restantes'}`; const node=farm.querySelector(`[data-plot="${i}"]`); node.setAttribute('aria-label',label); node.querySelector('title').textContent=label; }
+    if(p.crop) { const status=plotStatus(p,now), label=`Canteiro ${i+1}, ${CROPS[p.crop].name}, ${status==='ready'?'pronta para colher':status==='dry'?'seca, crescimento pausado; regue para crescer':time(growthRemaining(p,now))+' restantes'}`; const node=farm.querySelector(`[data-plot="${i}"]`); if(node.getAttribute('aria-label')!==label)node.setAttribute('aria-label',label); const title=node.querySelector('title');if(title.textContent!==label)title.textContent=label; }
   });
   const ready=state.plots.filter(p=>plotStatus(p,now)==='ready').length;
   $('#ready-count').innerHTML=ready?`<span>✦</span> ${ready} ${ready===1?'colheita pronta':'colheitas prontas'}`:'<span>☘</span> Tudo no seu tempo';
@@ -139,7 +139,7 @@ window.addEventListener('pointermove',e=>{
   else {const r=farm.getBoundingClientRect(),v=farm.viewBox.baseVal;v.x=Math.max(-500,Math.min(1200,v.x-dx*v.width/r.width));v.y=Math.max(-400,Math.min(800,v.y-dy*v.height/r.height));}
   g.x=e.clientX;g.y=e.clientY;
 },{passive:false});
-function finishPointer(e){const g=pointerGesture;if(!g||(e.pointerId!==undefined&&g.id!==e.pointerId))return;pointerGesture=null;suppressMapClick=g.dragged;farm.classList.remove('is-dragging');if(farm.hasPointerCapture(g.id))farm.releasePointerCapture(g.id);}
+function finishPointer(e){const g=pointerGesture;if(!g||(e.pointerId!==undefined&&g.id!==e.pointerId))return;pointerGesture=null;suppressMapClick=g.dragged;if(g.dragged)farm3d?.finishPan();farm.classList.remove('is-dragging');if(farm.hasPointerCapture(g.id))farm.releasePointerCapture(g.id);}
 window.addEventListener('pointerup',finishPointer);window.addEventListener('pointercancel',finishPointer);farm.addEventListener('lostpointercapture',finishPointer);window.addEventListener('blur',finishPointer);
 farm.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('[data-plot],[data-animal],[data-building]')){e.preventDefault();activateMapTarget(e.target);}});
 function showPlotInfo(index) {
