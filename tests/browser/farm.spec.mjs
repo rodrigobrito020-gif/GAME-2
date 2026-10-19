@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 const key='game2-sitio-aurora-v1';
 const saved=page=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);
-test.beforeEach(async({page})=>{ await page.clock.install({time:new Date('2026-10-19T15:00:00Z')}); await page.goto('/'); });
+test.beforeEach(async({page})=>{ await page.clock.install({time:new Date('2026-10-19T15:00:00Z')}); await page.goto('/?view=classic'); });
 test('fazenda inicial, ciclo de plantio, água, colheita e venda reais',async({page})=>{
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   await expect(page.locator('#coins')).toHaveText('160');

@@ -16,3 +16,16 @@
 @keyframes lake-surface{0%,100%{transform:translate(0,0)}50%{transform:translate(3px,-1px)}}@keyframes orchard-wind{0%,100%{transform:rotate(-.22deg)}50%{transform:rotate(.35deg)}}@keyframes grass-breeze{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(5deg)}}@keyframes water-ring{0%{transform:scale(.45);opacity:.8}100%{transform:scale(2.7);opacity:0}}@keyframes water-line{0%,100%{transform:translateX(-3px);opacity:.25}50%{transform:translateX(5px);opacity:.8}}@keyframes butterfly-drift{0%,100%{translate:0 0;rotate:-5deg}50%{translate:15px -12px;rotate:10deg}}
 @media(prefers-reduced-motion:reduce){.lake-surface,.orchard-wind,.wind-grass,.water-ring,.water-line,.butterfly{animation:none!important}}
 .soil-surface{pointer-events:none}.soil-surface.wet{filter:brightness(.73) saturate(1.1)}.plot.dry .tile-top{filter:none}
+
+/* The 3D canvas and the accessible SVG hit targets use the same projection. */
+.has-3d #farm-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+.has-3d #farm{z-index:1;touch-action:pan-y}
+.has-3d .plot polygon,.has-3d [data-animal] rect,.has-3d [data-building] rect{fill:transparent;stroke:none;pointer-events:all}
+.has-3d .plot:hover polygon,.has-3d .plot:focus polygon{fill:#fff3a31f;stroke:#fff3b6;stroke-width:2;filter:none}
+.has-3d [data-animal]:focus rect,.has-3d [data-building]:focus rect{stroke:#fff6be;stroke-width:2}
+.has-3d [data-animal],.has-3d [data-building]{cursor:pointer;outline:none}
+.has-3d .farm-hud,.has-3d .side-actions,.has-3d .tool-shelf,.has-3d .zoom-controls{z-index:3}
+.has-3d .map-caption{z-index:2;bottom:104px;background:#fff8deed;box-shadow:0 2px 8px #3b622544}
+.has-3d .farm-nameplate{z-index:2}
+.has-3d .tool-shelf{background:linear-gradient(#65893af5,#4d712bf2);border-color:#e0cd86aa;box-shadow:0 4px 15px #36542070}
+@media(max-width:650px){.has-3d .map-caption{bottom:84px;max-width:90%;width:max-content}.has-3d .ready-badge{display:none}.has-3d .farm-hud{gap:6px}.has-3d .player-card{min-width:0;max-width:200px}.has-3d .side-actions{top:90px;right:6px}.has-3d .side-actions>button{width:46px;height:49px}.has-3d .side-actions .icon{width:24px;height:24px}}

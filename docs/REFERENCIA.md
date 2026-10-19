@@ -28,3 +28,7 @@ Vizinhos reais, visitas, ajuda e roubo de colheitas; proteção do cachorro; flo
 ## Correção de rega na versão 0.3
 
 O cultivo recém-plantado fica seco e pausado até receber água. Nenhum tempo de crescimento é acumulado nesse período, inclusive após recarregar o jogo. A rega começa o ciclo e a adubação exige que ele já tenha sido regado. O progresso e os itens antigos são preservados, e plantações antigas sem rega também precisam de água.
+
+## Direção 3D confirmada após o guia
+
+Na versão 0.4, o usuário optou por preservar as mecânicas e adotar o estilo 3D cartoon de uma nova imagem de referência. O cenário tridimensional, o personagem e as ferramentas são modelos procedurais próprios. A screenshot foi usada como direção visual; seus recursos não foram extraídos nem copiados. A versão ilustrada 0.3 permanece como alternativa 2D. Essa mudança visual é uma escolha posterior do usuário e não uma afirmação de que o jogo original do Orkut era 3D.

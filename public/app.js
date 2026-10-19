@@ -1,3 +1,4 @@
+import { createFarm3D } from './farm3d.js';
 import { SAVE_KEY, CROPS, PRODUCTS, ANIMALS, animalProduction, QUESTS, FERTILIZER_PRICE, newGame, decodeSave, levelInfo, plotStatus, plotCare, progress, growthRemaining, expansionPrice, action } from './game.js';
 import { icon, cropIcon, animalIcon, animalMarkup, landscape, plotMarkup } from './art.js';
 
@@ -9,7 +10,9 @@ try { const raw=localStorage.getItem(SAVE_KEY); state=raw?decodeSave(raw):newGam
 catch { state=newGame(); saveAvailable=false; }
 let tool='smart', selectedCrop='turnip', modalType=null, expansionIndex=null, toastTimer, zoom=1, lastSignature='', returnFocus=null, shopTab='seeds', animalIndex=null;
 const farm=$('#farm');
-farm.innerHTML=landscape()+'<g id="plots"></g><g id="animals"></g>';
+farm.innerHTML='<g id="plots"></g><g id="animals"></g><g id="buildings"></g>';
+const farm3d=(document.documentElement.dataset.view==='classic'||new URLSearchParams(location.search).get('view')==='classic')?null:createFarm3D(farm,{onStatus:message=>$('#map-hint').textContent=message,onError:message=>toast(message,true)});
+if(!farm3d){farm.innerHTML=landscape()+'<g id="plots"></g><g id="animals"></g>';if(new URLSearchParams(location.search).get('view')!=='classic')setTimeout(()=>toast('3D indisponível neste navegador. A fazenda abriu no modo 2D.',true),300);}
 document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
 
 function toast(message, error=false) {
@@ -33,7 +36,7 @@ function run(type,payload={}) {
   toast(message); return true;
 }
 function selectTool(next) {
-  tool=next;
+  tool=next; farm3d?.selectTool(next);
   document.querySelectorAll('[data-tool]').forEach(el=>{ el.classList.toggle('active',el.dataset.tool===tool); el.setAttribute('aria-pressed',String(el.dataset.tool===tool)); });
   $('#map-hint').textContent={smart:'Selecione um canteiro para plantar ou colher.',plant:`Plante ${CROPS[selectedCrop].name.toLowerCase()} em um canteiro vazio`,water:'Regue as plantas secas para iniciar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
   farm.dataset.activeTool=tool;
@@ -43,8 +46,9 @@ function renderPlots(force=false) {
   const signature=JSON.stringify([state.plots.map(p=>[p.unlocked,p.crop,p.watered,p.fertilized,plotCare(p,now),plotStatus(p,now),Math.floor(progress(p,now)*2)]),(state.animals||[]).map(a=>[a.type,animalProduction(a,now).amount,animalProduction(a,now).hungry])]);
   if(force||signature!==lastSignature) {
     const focus=document.activeElement?.dataset.plot;
-    $('#plots').innerHTML=plotMarkup(state,now); lastSignature=signature;
-    $('#animals').innerHTML=animalMarkup(state,now);
+    if(farm3d) farm3d.update(state);
+    else {$('#plots').innerHTML=plotMarkup(state,now);$('#animals').innerHTML=animalMarkup(state,now);}
+    lastSignature=signature;
     if(modalType==='animal')renderModal();
     if(focus!==undefined) farm.querySelector(`[data-plot="${focus}"]`)?.focus({preventScroll:true});
   }
@@ -71,13 +75,20 @@ function render() {
   renderPlots(true);
   if(modalType) renderModal();
 }
+function doPlotAction(type,index,payload={}) {
+  if(!farm3d)return run(type,{index,...payload});
+  const check=action(state,type,{index,...payload});
+  if(!check.ok){toast(check.message,true);return false;}
+  $('#plot-tooltip').classList.remove('visible');
+  return farm3d.enqueue(type,index,()=>run(type,{index,...payload}));
+}
 function plotClick(index) {
   const p=state.plots[index], status=plotStatus(p);
   if(status==='locked') { expansionIndex=index; openModal('expand'); return; }
-  if(tool==='water') { run('water',{index}); return; }
-  if(['weed','spray','fertilize'].includes(tool)) { run(tool,{index}); return; }
-  if(tool==='harvest'||(tool==='smart'&&status==='ready')) { run('harvest',{index}); return; }
-  if((tool==='plant'||tool==='smart')&&status==='empty') { if(!state.seeds[selectedCrop]) { openModal('shop'); toast('Compre sementes para continuar plantando.'); } else run('plant',{index,crop:selectedCrop}); return; }
+  if(tool==='water') { doPlotAction('water',index); return; }
+  if(['weed','spray','fertilize'].includes(tool)) { doPlotAction(tool,index); return; }
+  if(tool==='harvest'||(tool==='smart'&&status==='ready')) { doPlotAction('harvest',index); return; }
+  if((tool==='plant'||tool==='smart')&&status==='empty') { if(!state.seeds[selectedCrop]) { openModal('shop'); toast('Compre sementes para continuar plantando.'); } else doPlotAction('plant',index,{crop:selectedCrop}); return; }
   if(status==='dry') {toast('Plantação seca: crescimento pausado. Selecione Regar e clique no canteiro.',true);return;}
   if(status==='growing') toast(`${CROPS[p.crop].name}: ${time(p.readyAt-Date.now())} para colher.${p.watered?' Já recebeu água.':' Experimente a ferramenta Regar!'}`);
   else toast('Use Cuidar ou Colher para recolher essa plantação.');
@@ -90,6 +101,7 @@ function activateMapTarget(target) {
 farm.addEventListener('click',e=>activateMapTarget(e.target));
 farm.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('[data-plot],[data-animal],[data-building]')){e.preventDefault();activateMapTarget(e.target);}});
 function showPlotInfo(index) {
+  if(farm3d?.busy){$('#plot-tooltip').classList.remove('visible');return;}
   const p=state.plots[index], c=p.crop&&CROPS[p.crop], care=plotCare(p), tip=$('#plot-tooltip');
   const status=plotStatus(p);
   tip.replaceChildren();
@@ -172,9 +184,10 @@ document.addEventListener('keydown',e=>{
   const shortcuts={1:'smart',2:'plant',3:'water',4:'harvest',5:'weed',6:'spray',7:'fertilize'};
   if(shortcuts[e.key]) selectTool(shortcuts[e.key]);
 });
-function zoomMap(delta) { zoom=Math.max(1,Math.min(1.6,zoom+delta)); const w=1400/zoom,h=820/zoom; farm.setAttribute('viewBox',`${700-w/2} ${440-h/2} ${w} ${h}`); $('#zoom-out').disabled=zoom<=1; $('#zoom-in').disabled=zoom>=1.59; }
+function zoomMap(delta) { zoom=Math.max(1,Math.min(1.6,zoom+delta)); const w=1400/zoom,h=820/zoom; if(farm3d){farm3d.setZoom(zoom);farm.dataset.zoom=zoom;}else farm.setAttribute('viewBox',`${700-w/2} ${440-h/2} ${w} ${h}`); $('#zoom-out').disabled=zoom<=1; $('#zoom-in').disabled=zoom>=1.59; }
 $('#zoom-in').addEventListener('click',()=>zoomMap(.2)); $('#zoom-out').addEventListener('click',()=>zoomMap(-.2)); $('#zoom-out').disabled=true;
-window.addEventListener('storage',e=>{ if(e.key===SAVE_KEY&&e.newValue) { const incoming=decodeSave(e.newValue); if(incoming) { state=incoming; render(); toast('Seu sítio foi atualizado por outra aba.'); } } });
+farm.addEventListener('wheel',e=>{if(!farm3d)return;e.preventDefault();zoomMap(e.deltaY<0?.1:-.1);},{passive:false});
+window.addEventListener('storage',e=>{ if(e.key===SAVE_KEY&&e.newValue) { const incoming=decodeSave(e.newValue); if(incoming) { farm3d?.cancel();state=incoming; render(); toast('Seu sítio foi atualizado por outra aba.'); } } });
 window.addEventListener('pageshow',()=>renderPlots());
 render(); persist();
 setInterval(()=>{ if(!document.hidden) renderPlots(); },1000);

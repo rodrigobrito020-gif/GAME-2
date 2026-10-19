@@ -2,12 +2,14 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 const base=new URL('./',import.meta.url);
 const read=name=>readFile(new URL(name,base),'utf8');
-const modules=await Promise.all(['game','art','app'].map(name=>read(`public/${name}.js`)));
-let source=modules.map(code=>code.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
+const { build }=await import('esbuild');
+const bundled=await build({entryPoints:[fileURLToPath(new URL('public/app.js',base))],bundle:true,format:'iife',write:false,minify:true,legalComments:'inline',target:'es2022'});
+let source=bundled.outputFiles[0].text.replace(/[ \t]+$/gm,'');
 for(const name of ['farm-painted.webp','soil-painted.webp']) {
   const asset=await readFile(new URL('public/assets/'+name,base));
   source=source.replaceAll('./assets/'+name,`data:image/webp;base64,${asset.toString('base64')}`);
 }
+source=source.replaceAll('</script','<\\/script');
 let html=await read('src/index.template.html');
 html=html.replace('class="brand" href="./"','class="brand" href="#"');
 const css=await read('public/style.css');

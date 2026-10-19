@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 const key='game2-sitio-aurora-v1';
 const saved=p=>p.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
-test.beforeEach(async({page})=>{await page.clock.install({time:new Date('2026-10-19T15:00:00Z')});await page.goto('/');});
+test.beforeEach(async({page})=>{await page.clock.install({time:new Date('2026-10-19T15:00:00Z')});await page.goto('/?view=classic');});
 test('capinar e dedetizar melhoram saúde e dobram produto; não repetem recompensa',async({page})=>{
   await page.locator('[data-seed="carrot"]').click();await page.locator('[data-plot="2"]').click();await page.locator('[data-tool="water"]').click();await page.locator('[data-plot="2"]').click();await page.clock.fastForward(21_000);
   await page.locator('[data-plot="2"]').hover();await expect(page.locator('.health-track span')).toHaveText('40/100');

@@ -46,3 +46,11 @@ Navegador, conforme a escolha do usuário. Interface em HTML/CSS e mapa isométr
 ## Atualização 0.3
 
 O usuário pediu vegetação viva, terra mais real, movimento na água/árvores e casas detalhadas. Foram adicionados cenário ilustrado e textura de terra gerados, com composição animada na água, folhagem e grama. O crescimento de plantas sem água também foi corrigido: a rega é necessária para iniciar o ciclo; esperar offline ou usar adubo não contorna essa regra.
+
+## Nova direção visual — versão 0.4
+
+Após mostrar uma referência de fazenda 3D cartoon com câmera inclinada, o usuário decidiu manter as mecânicas de Colheita Feliz nesse estilo. Pediu que o fazendeiro segure e use a ferramenta adequada: cesta ao colher, regador ao regar e os demais objetos correspondentes. Autorizou salvar este projeto no GitHub como GAME-2.
+
+A vista principal passa a ser uma cena 3D em Three.js, com modelos próprios e câmera ortográfica inclinada. O personagem caminha pelos corredores entre os canteiros e executa as tarefas com ferramentas presas à mão. A alteração da plantação ocorre durante a animação e é validada naquele instante. Uma fila conserva a intenção de cada clique. As regras, o estoque e o salvamento local continuam independentes do renderizador. A vista SVG anterior é mantida como alternativa compatível quando WebGL não está disponível. A compilação continua gerando HTML autocontido.
+
+O objetivo de jogo online para cerca de 30 pessoas permanece no escopo futuro; mudar o renderizador e salvar no GitHub não implementa multiplayer.

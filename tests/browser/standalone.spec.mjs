@@ -9,7 +9,7 @@ test('HTML independente joga, salva e não faz requisições externas',async({pa
   // file:// é bloqueado pela política do Chromium deste ambiente. Testa o mesmo
   // arquivo completo por HTTP, sem fornecer nenhum arquivo auxiliar.
   const html=await readFile(new URL('../../dist/JOGAR.html',import.meta.url),'utf8');
-  await page.route('**/standalone.html',route=>route.fulfill({contentType:'text/html',body:html}));
+  await page.route('**/standalone.html',route=>route.fulfill({contentType:'text/html',body:html.replace('<html lang=','<html data-view="classic" lang=')}));
   page.on('request',req=>{if(/^https?:/.test(req.url())&&!req.url().endsWith('/standalone.html')) network.push(req.url());});
   await page.goto('/standalone.html');
   await expect(page.locator('#coins')).toHaveText('160');

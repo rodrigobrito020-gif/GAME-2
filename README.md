@@ -1,82 +1,73 @@
-# GAME-2 — Colheita Feliz, versão 0.3
+# GAME-2 — Colheita Feliz 3D, versão 0.4
 
-Recriação em desenvolvimento do **Colheita Feliz**, clássico do Orkut, orientada pelo guia ilustrado enviado pelo usuário. O cenário e as mecânicas seguem as referências históricas; o cenário ilustrado e a textura do solo foram gerados para o projeto, e a implementação é própria. O jogo ainda está em versão local para um jogador e continua independente do GAME-1.
+Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
 
-O guia e o registro das referências aplicadas estão em [docs/REFERENCIA.md](docs/REFERENCIA.md).
+## Jogar
 
-## Jogar sem instalar
+No pacote, extraia a pasta e abra **JOGAR.html** no Chrome, Edge ou Firefox atualizado. Se baixar o código pelo GitHub, a entrada pronta é **index.html**. O HTML inclui código, interface, biblioteca 3D e recursos visuais; não faz downloads durante o jogo. A visão 3D requer WebGL 2. Se o navegador não conseguir iniciar o renderizador, o jogo avisa e abre a fazenda 2D compatível.
 
-No pacote entregue, extraia a pasta e abra **JOGAR.html** com dois cliques no Chrome, Edge ou Firefox atualizado. O arquivo contém a interface, a arte e o código, sem downloads ou serviços externos.
+Selecione uma ferramenta e clique no canteiro. O fazendeiro caminha pelas passagens, vira para a plantação e realiza a ação com o objeto na mão:
 
-O progresso é salvo neste navegador e neste endereço/arquivo. Mudar de navegador, mover o arquivo, limpar os dados do site ou usar modo anônimo pode deixar o progresso anterior indisponível. Não há contas nem sincronização entre dispositivos nesta versão.
+- Plantar: bolsa de sementes e movimento de semear.
+- Regar: regador com água.
+- Colher: cesta e movimento para recolher a produção.
+- Capinar: enxada.
+- Dedetizar: pulverizador.
+- Adubar: saco de adubo.
 
-## O que já funciona
+A alteração acontece durante a animação, após chegar ao canteiro. É possível selecionar vários canteiros para formar uma fila de até 12 tarefas. Cada tarefa conserva a ferramenta e a semente escolhidas no clique; cliques repetidos na mesma tarefa não duplicam produtos. As condições são verificadas novamente quando a ação acontece. Uma tarefa ainda não aplicada não gasta sementes ou adubo e não é salva ao fechar a aba.
 
-- Cenário ilustrado com vegetação, casa detalhada e lago. Há movimento na superfície da água, na folhagem e nos tufos de grama, respeitando a preferência de movimento reduzido.
-- Canteiros com textura de terra em perspectiva e aparência mais escura depois da rega; 9 canteiros iniciais e expansão até 16.
-- Oito cultivos: nabo, cenoura, trigo, morango, milho, abóbora, tomate e melancia. Novas fazendas começam com duas plantações de nabo.
-- Bolsa de sementes, compra na loja, plantio, rega, crescimento, colheita e venda no armazém.
-- A plantação começa seca e só cresce depois de regada. O tempo sem água não acumula, inclusive fora do jogo; após regar, o ciclo começa com 25% de bônus. Os dois nabos iniciais já foram regados.
-- Ervas daninhas, pragas e seca reduzem a saúde mostrada ao apontar para o canteiro. Capine e dedetize para recuperar a saúde e ganhar um produto extra por cultivo tratado.
-- Adubo consumível adianta mais 20% do ciclo depois da rega. Não pode substituir água nem é consumido em planta seca.
-- Galinhas e vacas com alimentação e produção de ovos/leite, incluindo crescimento offline, coleta e venda. Sem ração, a produção pausa; alimentar retoma o ciclo preservando produtos já gerados.
-- Loja com categorias de sementes, animais e ferramentas; cercado com capacidade de seis animais.
-- Nome da fazenda editável, missões em janela e bolsa que abre e fecha.
-- Experiência, níveis e cultivos desbloqueados progressivamente.
-- Três objetivos iniciais com recompensas únicas.
-- Crescimento calculado por horário, inclusive depois de fechar e reabrir.
-- Zoom, atalhos de teclado, controles por toque e interface adaptada para telas pequenas.
-- Backup de progresso ilegível e aviso quando o salvamento não está disponível.
+Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 7** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
 
-Os ciclos de cultivo duram de 30 segundos a 6 minutos para facilitar a avaliação. Preços, tempos, XP e bônus são parâmetros provisórios desta implementação, sem afirmar equivalência com a economia oficial do jogo histórico.
+## Mecânicas preservadas
+
+- Nove canteiros iniciais, expansão até 16 e oito cultivos: nabo, cenoura, trigo, morango, milho, abóbora, tomate e melancia.
+- Duas plantações iniciais de nabo, já regadas.
+- Sem água, a planta não cresce, inclusive fora do jogo. A primeira rega inicia o ciclo com 25% de bônus; adubo adianta mais 20% depois da rega. O tempo seco não acumula.
+- Saúde das plantas, ervas daninhas, pragas e bônus de produto ao capinar e dedetizar o cultivo.
+- Compra de sementes e adubo, armazém, venda da produção, experiência, níveis e missões com recompensas únicas.
+- Galinhas e vacas com ração, ovos/leite, coleta e venda. Sem alimento, a produção fica pausada, inclusive offline.
+- Nome da fazenda editável, bolsa de sementes e loja por categorias.
+- Salvamento local, backup de progresso ilegível e aviso se o navegador bloquear o armazenamento.
+
+Os ciclos duram de 30 segundos a 6 minutos para facilitar a avaliação. Preços, tempos, XP e bônus são provisórios, sem afirmar equivalência com os parâmetros do jogo histórico. O progresso da versão anterior é preservado pela mesma chave de salvamento.
 
 ## Desenvolver
 
-Requer Node.js 22 ou superior. A aplicação não tem dependências de execução.
-
-```sh
-npm start
-```
-
-Abra `http://localhost:3000` no navegador. `PORT=3001 npm start` usa outra porta. Uma hospedagem estática também pode servir o conteúdo da pasta `public/` na raiz do site.
-
-Para gerar novamente o HTML independente:
-
-```sh
-npm run build
-```
-
-O resultado fica em `dist/JOGAR.html`.
-
-O mesmo HTML completo também é gerado em `index.html` e `public/index.html`. Essas entradas contêm o CSS, a arte e o JavaScript, permitindo prévias que recebem apenas o HTML. `npm start` executa a geração automaticamente antes de iniciar o servidor. Para editar a estrutura da página, use `src/index.template.html`; os fontes de estilo e lógica continuam em `public/`.
-
-## Verificação
+Requer **Node.js 22+**. Three.js e esbuild têm versões registradas no lockfile; a biblioteca é embutida no HTML durante a compilação, sem CDN. Os testes usam Playwright.
 
 ```sh
 npm ci
+npm start
+```
+
+O servidor local usa a porta 3000. `PORT=3001 npm start` usa outra porta. Também é possível servir a pasta `public/` em uma hospedagem estática.
+
+```sh
+npm run build
 npm test
 npm run test:browser
 ```
 
-Os testes de navegador usam Chromium em `/usr/bin/chromium` neste ambiente. Em outra máquina, defina `CHROMIUM_PATH` para o executável instalado. Exemplo no Windows PowerShell:
+`npm run build` gera três entradas autocontidas idênticas: `index.html`, `public/index.html` e `dist/JOGAR.html`. Edite `src/index.template.html`, `public/app.js`, `public/game.js`, `public/art.js`, `public/farm3d.js` e `public/style.css`; não edite o HTML gerado manualmente.
+
+Os testes de navegador usam Chromium em `/usr/bin/chromium` neste ambiente. Em outra máquina, defina `CHROMIUM_PATH` para o executável instalado. No PowerShell:
 
 ```powershell
 $env:CHROMIUM_PATH = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 npm run test:browser
 ```
 
-As verificações cobrem economia, maturidade, saúde, rega, capina, pragas, adubo, recompensas únicas, compras, expansão, níveis, dados inválidos e o ciclo completo. Também verificam alimentação dos animais, pausa da produção, coleta única, persistência e venda. No navegador, exercitam cliques reais, salvamento, crescimento ao voltar, teclado, zoom, tela móvel, prévia isolada e HTML independente. O relógio é avançado nos testes para verificar o crescimento sem esperar minutos reais.
+O Chromium gerenciado deste ambiente bloqueia `file://`. O HTML independente é testado por HTTP como único arquivo disponível, incluindo iframe isolado sem recursos auxiliares. A abertura direta por dois cliques não foi verificada aqui.
 
-O Chromium gerenciado deste ambiente bloqueia endereços `file://`. Por isso, o HTML independente foi testado por HTTP, fornecendo apenas esse arquivo e verificando que não solicita recursos auxiliares. A abertura direta por dois cliques não pôde ser verificada aqui. Se seu navegador também bloquear, use o servidor descrito acima.
+## Visual e desempenho
 
-## Escopo desta versão
+`public/farm3d.js` constrói os modelos: fazendeiro com rig, seis ferramentas, culturas, casas, cercas, árvores, lago, galinheiro e animais. Luz e sombras são reais. Árvores, água e animais têm movimentos suaves; a preferência de movimento reduzido desliga os movimentos ambientais, preservando a execução das tarefas. Geometria estática é agrupada por material e a grama usa instâncias. O renderizador limita a resolução e atualiza sombras quando necessário.
 
-Esta versão é para um jogador, com salvamento local. Vizinhos, ajuda, roubo de colheitas, proteção do cachorro, flores/popularidade, decoração editável e presentes ainda não foram implementados. Multiplayer e autenticação serão tratados depois do jogo, conforme a prioridade atual do usuário.
+A camada SVG transparente acompanha a projeção da câmera e oferece alvos de clique e navegação por teclado. A economia e o salvamento usam as mesmas regras em ambas as vistas. A vista 2D conserva o cenário e o solo gerados da versão 0.3, documentados em `public/assets/provenance.json`. Three.js usa licença MIT, incluída em `licenses/THREE-MIT.txt`.
 
-Não usa modelos ou código do RPG GAME-1. As capturas do guia orientam a reconstrução, e o cenário e o solo usam arte gerada, combinada com elementos interativos em SVG; esta entrega ainda não equivale ao cliente Flash original completo. O progresso anterior do protótipo Sítio Aurora é preservado pela mesma chave de salvamento, sem reiniciar os itens do jogador.
+## O que ainda falta para o evento
 
-## Arte e animação
+Esta versão é local. **GitHub armazena o código; não fornece, por si só, partidas online.** Contas, servidor persistente, visitas entre amigos, ajuda e roubo de colheitas ainda precisam ser implementados e validados para os cerca de 30 participantes. A hospedagem na VPS Windows será tratada depois do jogo, conforme a prioridade definida pelo usuário.
 
-`public/assets/` contém o cenário e o solo. O cenário foi codificado em WebP sem perda, com igualdade dos pixels RGB verificada contra o PNG original. A textura de terra foi adaptada para 384×384, adequada aos canteiros pequenos, e codificada em WebP sem perda. A procedência e os hashes estão em `public/assets/provenance.json`.
-
-`npm run build` embute as duas imagens em todas as entradas HTML. Água e folhas usam camadas animadas recortadas do cenário; as bordas têm tufos de grama animados. Isso é composição visual, sem simulação física de vento ou líquidos.
+O guia histórico está em [docs/REFERENCIA.md](docs/REFERENCIA.md). Não há modelos ou código do RPG GAME-1 neste projeto.

@@ -18,7 +18,7 @@ for(const width of [980,390]) {
     await page.route('**/preview-host.html',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0"><iframe title="Prévia" sandbox="allow-scripts" style="border:0;width:100vw;height:100vh"></iframe></body></html>'}));
     await page.setViewportSize({width,height:950});
     await page.goto('/preview-host.html');
-    await page.locator('iframe').evaluate((el,html)=>{el.srcdoc=html;},html);
+    await page.locator('iframe').evaluate((el,html)=>{el.srcdoc=html.replace('<html lang=','<html data-view="classic" lang=');},html);
     const preview=page.frameLocator('iframe');
     await expect(preview.locator('#farm [data-plot]')).toHaveCount(16);
     await expect(preview.locator('.layout')).toHaveCSS('display',width===390?'flex':'grid');

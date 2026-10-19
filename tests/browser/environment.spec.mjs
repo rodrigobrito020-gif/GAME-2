@@ -2,7 +2,7 @@ import { test,expect } from '@playwright/test';
 
 test('cenário e solo carregam no HTML completo sem imagens externas',async({page})=>{
   const external=[];page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.isNavigationRequest())external.push(r.url());});
-  await page.goto('/');
+  await page.goto('/?view=classic');
   const sizes=await page.evaluate(async()=>{
     const images=[document.querySelector('#farm-paint'),document.querySelector('#soil-paint')];
     return Promise.all(images.map(async el=>{const img=new Image();img.src=el.getAttribute('href');await img.decode();return [img.naturalWidth,img.naturalHeight];}));
@@ -12,7 +12,7 @@ test('cenário e solo carregam no HTML completo sem imagens externas',async({pag
 });
 
 test('água e folhagem mudam visualmente; preferência de movimento reduzido mantém estáticas',async({page})=>{
-  await page.goto('/');await page.evaluate(async()=>{const image=new Image();image.src=document.querySelector('#farm-paint').getAttribute('href');await image.decode();});
+  await page.goto('/?view=classic');await page.evaluate(async()=>{const image=new Image();image.src=document.querySelector('#farm-paint').getAttribute('href');await image.decode();});
   const farm=page.locator('#farm');
   async function region(x,y,w,h){return farm.evaluate((svg,[x,y,w,h])=>{const m=svg.getScreenCTM();return{x:m.a*x+m.e,y:m.d*y+m.f,width:m.a*w,height:m.d*h};},[x,y,w,h]);}
   const clips=[await region(55,145,230,55),await region(1085,135,140,45)];
