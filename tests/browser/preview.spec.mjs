@@ -21,8 +21,8 @@ for(const width of [980,390]) {
     await page.locator('iframe').evaluate((el,html)=>{el.srcdoc=html.replace('<html lang=','<html data-view="classic" lang=');},html);
     const preview=page.frameLocator('iframe');
     await expect(preview.locator('#farm [data-plot]')).toHaveCount(54);
-    await expect(preview.locator('.layout')).toHaveCSS('display',width===390?'flex':'grid');
-    await expect(preview.locator('.farm-stage')).toHaveCSS('position','relative');
+    await expect(preview.locator('.layout')).toHaveCSS('display','block');
+    await expect(preview.locator('.farm-stage')).toHaveCSS('position','absolute');
     await expect(preview.locator('#save-status')).toContainText('Salvamento indisponível');
     await preview.locator('[data-plot="0"]').click();
     await preview.locator('#open-storage').click();

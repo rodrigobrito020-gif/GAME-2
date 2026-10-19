@@ -43,7 +43,7 @@ for(const view of ['classic','3d'])test(`lago e cartões cabem no celular em ${v
   await page.locator('#open-pond').click();await page.locator('[data-buy-pond]').click();await page.locator('[data-buy-aquatic="fish"]').click();await page.locator('[data-buy-aquatic="shrimp"]').click();
   await page.clock.fastForward(90000);await page.locator('[data-collect-aquatic="1"]').click();expect((await saved(page)).products.shrimp).toBe(1);
   expect(await page.locator('#modal').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
-  await page.locator('#close-modal').click();await page.locator('[data-seed="carrot"]').click();await expect(page.locator('[data-seed="carrot"]')).toHaveAttribute('aria-pressed','true');
+  await page.locator('#close-modal').click();await page.locator('#open-bag').click();await page.locator('[data-seed="carrot"]').click();await expect(page.locator('[data-seed="carrot"]')).toHaveAttribute('aria-pressed','true');
   await page.locator('#zoom-in').click();await expect(page.locator('#zoom-out')).toBeEnabled();await page.locator('#zoom-out').click();
 });
 test('fazenda ampliada: caminha pelas quatro margens do lago sem entrar na água',async({page})=>{

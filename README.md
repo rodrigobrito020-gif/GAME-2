@@ -1,16 +1,16 @@
-# GAME-2 — Colheita Feliz 3D, versão 0.7.0
+# GAME-2 — Colheita Feliz 3D, versão 0.8.0
 
 Jogo de fazenda para navegador, independente do GAME-1. Mantém o ciclo de cuidado do **Colheita Feliz** e agora usa uma fazenda **3D cartoon**, seguindo a nova direção escolhida pelo usuário. A implementação e os modelos 3D são próprios; não são recursos do cliente original. Ainda é uma versão para um jogador, com progresso salvo no navegador.
 
-![Fazenda ampliada, cartões simplificados, lago com peixes e gaiolas, galinheiro, curral, aprisco e moinho](docs/images/fazenda-v07.png)
+![Fazenda em toda a janela, com recursos no canto superior direito](docs/images/fazenda-v08.png)
 
-Exemplo da versão 0.7.0 com lago, peixes, gaiolas, galinha, vaca e ovelhas já compradas. Cada fazenda começa com os recursos iniciais descritos abaixo.
+A interface ocupa toda a janela do navegador. Cada fazenda começa com os recursos iniciais descritos abaixo.
 
 ## Jogar
 
 No pacote, extraia a pasta e abra **JOGAR.html** no Chrome, Edge ou Firefox atualizado. Se baixar o código pelo GitHub, a entrada pronta é **index.html**. O HTML inclui código, interface, biblioteca 3D e recursos visuais; não faz downloads durante o jogo. A visão 3D requer WebGL 2. Se o navegador não conseguir iniciar o renderizador, o jogo avisa e abre a fazenda 2D compatível.
 
-Selecione uma ferramenta e clique no canteiro. O fazendeiro caminha pelas passagens, vira para a plantação e realiza a ação com o objeto na mão:
+Clique num **canteiro vazio** para abrir as sementes. Escolher um cultivo manda o fazendeiro plantar naquele terreno; fechar ou pressionar Escape cancela sem gastar sementes. Para os outros cuidados, selecione a ferramenta e clique na plantação. O fazendeiro caminha pelas passagens, vira para a plantação e realiza a ação com o objeto na mão:
 
 - Plantar: bolsa de sementes e movimento de semear.
 - Regar: regador com água.
@@ -23,14 +23,23 @@ A alteração acontece durante a animação, após chegar ao canteiro. É possí
 
 Use os botões **+ / −** ou o scroll sobre a fazenda para aproximar ou afastar a câmera. Os atalhos **1 a 7** selecionam ferramentas; **Tab e Enter** também permitem acionar os canteiros. A interface funciona por toque. A versão 2D continua disponível em `?view=classic`.
 
+## Fazenda em toda a janela — versão 0.8.0
+
+- Cenário ocupa toda a página, sem rolagem da página, no computador e no celular. Janelas de loja, sementes e armazém rolam internamente quando necessário.
+- Moedas e reserva de água no canto superior direito; personagem no canto superior esquerdo. Moinho, lago, loja e armazém continuam disponíveis na lateral.
+- Sementes aparecem ao clicar num canteiro vazio. A seleção planta nesse canteiro; a animação continua consumindo a semente apenas durante a ação. O botão Sementes permite consultar o estoque e acessar a loja.
+- **Segure o botão esquerdo e arraste sobre o mapa** para mover a câmera. O arraste funciona também sobre canteiros, sem colher, plantar ou fazer o personagem andar ao soltar. Clique simples mantém as ações. O enquadramento fica onde foi deixado até um novo comando ao personagem; o zoom continua funcionando.
+
+[Ver a escolha de sementes](docs/images/sementes-v08.png).
+
 ## Arte pintada, campo ampliado e moinho — versão 0.7.0
 
 - Cultivos, produtos e ferramentas com ilustrações próprias em estilo cartoon pintado, fundos creme, títulos verdes e botões dourados, seguindo a referência do usuário. Preços, tempos, quantidades e nomes continuam como texto legível do jogo. Os recursos são embutidos no HTML.
-- Lago aproximadamente três vezes maior em área, com margem percorrível, peixes e gaiolas. Os contadores ficam acima do cenário para não cobrir a água. Casas com telhados, varanda, vigas, janelas laterais e materiais mais detalhados; iluminação e animações ambientais revistas.
+- Lago aproximadamente três vezes maior em área, com margem percorrível, peixes e gaiolas. Os contadores ficam no canto superior direito. Casas com telhados, varanda, vigas, janelas laterais e materiais mais detalhados; iluminação e animações ambientais revistas.
 - **54 terrenos de plantio** ocupam a área até a cerca. A fazenda começa com os mesmos nove terrenos livres; os demais são expandidos com moedas. Os primeiros 16 índices e suas plantações são preservados ao migrar saves antigos.
 - Cavalos removidos. O **aprisco recebe ovelhas compradas na loja**: custam 120 moedas, são liberadas no nível 2, produzem lã a cada 90 segundos e usam a mesma ração de ruminantes das vacas.
 - **Soja e alfafa** disponíveis no nível 1. Novas fazendas recebem três sementes de cada; saves anteriores conservam seus itens e podem comprar as novas sementes na loja.
-- Clique no moinho no cenário ou em **Moinho de ração** abaixo do mapa. Receitas usam **a colheita no armazém**, sem gastar sementes ou moedas. O preparo leva tempo, continua offline e precisa ser recolhido antes de iniciar outra receita.
+- Clique no moinho no cenário ou no botão **Moinho** da lateral. Receitas usam **a colheita no armazém**, sem gastar sementes ou moedas. O preparo leva tempo, continua offline e precisa ser recolhido antes de iniciar outra receita.
 
 | Receita | Ingredientes colhidos | Produção | Tempo |
 | --- | --- | --- | --- |

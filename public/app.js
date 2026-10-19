@@ -9,6 +9,7 @@ let state, saveAvailable=true, recovered=false;
 try { const raw=localStorage.getItem(SAVE_KEY); state=raw?decodeSave(raw):newGame(); if(!state) { localStorage.setItem(SAVE_KEY+'-backup',raw); state=newGame(); recovered=true; } }
 catch { state=newGame(); saveAvailable=false; }
 let tool='smart', selectedCrop='turnip', modalType=null, expansionIndex=null, toastTimer, zoom=1, lastSignature='', returnFocus=null, shopTab='seeds', animalIndex=null;
+let pendingPlantIndex=null, seedReturnFocus=null, pointerGesture=null, suppressMapClick=false;
 const farm=$('#farm');
 farm.innerHTML='<g id="plots"></g><g id="animals"></g><g id="buildings"></g><g id="pond"></g>';
 const farm3d=(document.documentElement.dataset.view==='classic'||new URLSearchParams(location.search).get('view')==='classic')?null:createFarm3D(farm,{onStatus:message=>$('#map-hint').textContent=message,onError:message=>toast(message,true)});
@@ -39,7 +40,7 @@ function run(type,payload={}) {
 function selectTool(next) {
   tool=next; farm3d?.selectTool(next);
   document.querySelectorAll('[data-tool]').forEach(el=>{ el.classList.toggle('active',el.dataset.tool===tool); el.setAttribute('aria-pressed',String(el.dataset.tool===tool)); });
-  $('#map-hint').textContent={smart:'WASD ou clique no chão para andar. Escolha um canteiro para cuidar.',plant:`Plante ${CROPS[selectedCrop].name.toLowerCase()} em um canteiro vazio`,water:'Regue as plantas secas para iniciar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
+  $('#map-hint').textContent={smart:'Arraste para mover a câmera · Clique num canteiro para cuidar',plant:'Clique num canteiro vazio e escolha o que plantar',water:'Regue as plantas secas para iniciar o crescimento',harvest:'Clique nas plantações com ✓ para colher',weed:'Retire as ervas daninhas dos canteiros',spray:'Elimine as pragas da plantação',fertilize:'Use um adubo para adiantar 20% do tempo de crescimento'}[tool];
   farm.dataset.activeTool=tool;
 }
 function renderWater(now=Date.now()) {
@@ -107,10 +108,10 @@ function doPlotAction(type,index,payload={}) {
 function plotClick(index) {
   const p=state.plots[index], status=plotStatus(p);
   if(status==='locked') { expansionIndex=index; openModal('expand'); return; }
+  if(status==='empty') {openSeedBag(index);return;}
   if(tool==='water') { doPlotAction('water',index); return; }
   if(['weed','spray','fertilize'].includes(tool)) { doPlotAction(tool,index); return; }
   if(tool==='harvest'||(tool==='smart'&&status==='ready')) { doPlotAction('harvest',index); return; }
-  if((tool==='plant'||tool==='smart')&&status==='empty') { if(!state.seeds[selectedCrop]) { openModal('shop'); toast('Compre sementes para continuar plantando.'); } else doPlotAction('plant',index,{crop:selectedCrop}); return; }
   if(status==='dry') {toast('Plantação seca: crescimento pausado. Selecione Regar e clique no canteiro.',true);return;}
   if(status==='growing') toast(`${CROPS[p.crop].name}: ${time(p.readyAt-Date.now())} para colher.${p.watered?' Já recebeu água.':' Experimente a ferramenta Regar!'}`);
   else toast('Use Cuidar ou Colher para recolher essa plantação.');
@@ -120,10 +121,29 @@ function activateMapTarget(target) {
   const building=target.closest('[data-building]');if(building){if(building.dataset.building==='house')openModal('rename');else if(building.dataset.building==='pond')openModal('pond');else if(building.dataset.building==='mill')openModal('mill');else if(building.dataset.building==='barn')openModal('storage');else{shopTab='animals';openModal('shop');}return;}
   const plot=target.closest('[data-plot]');if(plot)plotClick(Number(plot.dataset.plot));
 }
-farm.addEventListener('click',e=>{if(e.target.closest('[data-plot],[data-animal],[data-building]'))activateMapTarget(e.target);else farm3d?.moveTo(e.clientX,e.clientY);});
+farm.addEventListener('click',e=>{
+  if(suppressMapClick&&e.detail!==0){suppressMapClick=false;e.preventDefault();return;}
+  if(e.target.closest('[data-plot],[data-animal],[data-building]'))activateMapTarget(e.target);else farm3d?.moveTo(e.clientX,e.clientY);
+});
+// Um clique só age ao soltar. Arrastar ultrapassa o limiar e passa a mover apenas a câmera.
+farm.addEventListener('pointerdown',e=>{
+  if(e.button!==0||e.isPrimary===false||document.querySelector('dialog[open]'))return;
+  suppressMapClick=false;pointerGesture={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,dragged:false};
+});
+window.addEventListener('pointermove',e=>{
+  const g=pointerGesture;if(!g||g.id!==e.pointerId)return;
+  if(!g.dragged&&Math.hypot(e.clientX-g.startX,e.clientY-g.startY)<6)return;
+  if(!g.dragged){g.dragged=true;farm.setPointerCapture(e.pointerId);farm.classList.add('is-dragging');$('#plot-tooltip').classList.remove('visible');}
+  e.preventDefault();const dx=e.clientX-g.x,dy=e.clientY-g.y;
+  if(farm3d)farm3d.panBy(dx,dy);
+  else {const r=farm.getBoundingClientRect(),v=farm.viewBox.baseVal;v.x=Math.max(-500,Math.min(1200,v.x-dx*v.width/r.width));v.y=Math.max(-400,Math.min(800,v.y-dy*v.height/r.height));}
+  g.x=e.clientX;g.y=e.clientY;
+},{passive:false});
+function finishPointer(e){const g=pointerGesture;if(!g||(e.pointerId!==undefined&&g.id!==e.pointerId))return;pointerGesture=null;suppressMapClick=g.dragged;farm.classList.remove('is-dragging');if(farm.hasPointerCapture(g.id))farm.releasePointerCapture(g.id);}
+window.addEventListener('pointerup',finishPointer);window.addEventListener('pointercancel',finishPointer);farm.addEventListener('lostpointercapture',finishPointer);window.addEventListener('blur',finishPointer);
 farm.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest('[data-plot],[data-animal],[data-building]')){e.preventDefault();activateMapTarget(e.target);}});
 function showPlotInfo(index) {
-  if(farm3d?.busy){$('#plot-tooltip').classList.remove('visible');return;}
+  if(farm3d?.busy||pointerGesture?.dragged){$('#plot-tooltip').classList.remove('visible');return;}
   const p=state.plots[index], c=p.crop&&CROPS[p.crop], care=plotCare(p), tip=$('#plot-tooltip');
   const status=plotStatus(p);
   tip.replaceChildren();
@@ -137,19 +157,30 @@ function showPlotInfo(index) {
   }
   tip.classList.add('visible');
 }
-farm.addEventListener('pointerover',e=>{const p=e.target.closest('[data-plot]');if(p)showPlotInfo(Number(p.dataset.plot));});
+farm.addEventListener('pointerover',e=>{const p=e.target.closest('[data-plot]');if(p&&!pointerGesture?.dragged)showPlotInfo(Number(p.dataset.plot));});
 farm.addEventListener('pointerleave',()=>$('#plot-tooltip').classList.remove('visible'));
 farm.addEventListener('focusin',e=>{const p=e.target.closest('[data-plot]');if(p)showPlotInfo(Number(p.dataset.plot));});
 farm.addEventListener('focusout',()=>$('#plot-tooltip').classList.remove('visible'));
 document.querySelectorAll('[data-tool]').forEach(el=>el.addEventListener('click',()=>selectTool(el.dataset.tool)));
-$('#seed-tray').addEventListener('click',e=>{ const el=e.target.closest('[data-seed]'); if(el&&!el.disabled) {selectedCrop=el.dataset.seed;selectTool('plant');render();} });
+function openSeedBag(index=null){
+  pendingPlantIndex=index;seedReturnFocus=document.activeElement;$('#plot-tooltip').classList.remove('visible');
+  $('#seed-title').textContent=index===null?'Bolsa de sementes':`O que plantar no canteiro ${index+1}?`;
+  $('#seed-note').textContent=index===null?'Veja suas sementes. Para plantar, clique num canteiro vazio.':'Escolha uma semente para plantar neste canteiro.';
+  if(!$('#seed-section').open)$('#seed-section').showModal();
+}
+function closeSeedBag(){if($('#seed-section').open)$('#seed-section').close();pendingPlantIndex=null;seedReturnFocus?.isConnected&&seedReturnFocus.focus({preventScroll:true});}
+$('#seed-tray').addEventListener('click',e=>{const el=e.target.closest('[data-seed]');if(!el||el.disabled)return;
+  if(!state.seeds[el.dataset.seed]){closeSeedBag();shopTab='seeds';openModal('shop');toast('Compre sementes para continuar plantando.');return;}
+  const index=pendingPlantIndex;selectedCrop=el.dataset.seed;closeSeedBag();selectTool('plant');render();if(index!==null)doPlotAction('plant',index,{crop:selectedCrop});
+});
 
-function openModal(type) {if(type==='rename')farm3d?.cancel(); returnFocus=document.activeElement; modalType=type; renderModal(); $('#modal').showModal(); }
+function openModal(type) {if($('#seed-section').open)closeSeedBag();if(type==='rename')farm3d?.cancel(); returnFocus=document.activeElement; modalType=type; renderModal(); $('#modal').showModal(); }
 function closeModal() { $('#modal').close(); modalType=null; returnFocus?.focus({preventScroll:true}); }
 function renderMillStatus(now=Date.now()) {
   const job=state.mill.job,ready=job&&now>=job.readyAt;
   $('#mill-status').textContent=job?ready?'Ração pronta para recolher':`Preparando · ${time(job.readyAt-now)}`:'Transforme sua colheita em ração';
   $('#feed-summary').textContent=`Aves: ${state.feed.poultry} · Vacas e ovelhas: ${state.feed.livestock} · Aquática: ${state.feed.aquatic}`;
+  $('#open-mill').title=`${$('#mill-status').textContent}. ${$('#feed-summary').textContent}`;
   if(modalType!=='mill')return;
   const status=$('[data-mill-status]');if(status)status.textContent=job?ready?'Pronto! Recolha os sacos de ração.':`Moendo e preparando · ${time(job.readyAt-now)}`:'Escolha uma receita abaixo.';
   const collect=$('[data-collect-feed]');if(collect)collect.disabled=!ready;
@@ -219,7 +250,7 @@ function renderModal() {
     if(!saveAvailable)$('#rename-form').insertAdjacentHTML('afterbegin','<p class="profile-error" id="profile-save-warning">O navegador está bloqueando o salvamento. As mudanças ficam disponíveis nesta aba.</p>');
     $('#rename-form').insertAdjacentHTML('afterbegin',`<fieldset class="farmer-choices"><legend>Seu personagem</legend>${[['male','👨🏻‍🌾','Fazendeiro'],['female','👩🏻‍🌾','Fazendeira']].map(([id,emoji,name])=>`<label><input type="radio" name="farmer" value="${id}" ${(state.farmer||'male')===id?'checked':''}><span>${emoji}</span><b>${name}</b></label>`).join('')}</fieldset>`);
   } else {
-    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Selecione uma semente na bolsa e clique em um canteiro vazio. Compre novas sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>Cada canteiro regado gasta 1 água. Você começa com 30 e recupera 1 a cada 2 minutos, até 30, inclusive fora do jogo. O contador no topo mostra a próxima recarga. A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Clique no seu avatar no topo para escolher fazendeiro ou fazendeira. Use <b>WASD</b>, as setas ou clique no chão para andar em 3D; mover cancela tarefas pendentes. Os terrenos dourados e o botão <b>Expandir</b> liberam novos canteiros.<br>Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
+    $('#modal-body').innerHTML=`<div class="help-steps"><article>${icon('sprout')}<div><h3>1. Escolha e plante</h3><p>Clique num canteiro vazio para abrir as sementes. Escolha o cultivo: o personagem caminha até lá e planta. Compre mais sementes na loja.</p></div></article><article>${icon('water')}<div><h3>2. Cuide da plantação</h3><p>Cada canteiro regado gasta 1 água. Você começa com 30 e recupera 1 a cada 2 minutos, até 30, inclusive fora do jogo. O contador no topo mostra a próxima recarga. A planta só cresce depois de regada. Sem água, o crescimento fica pausado, inclusive fora do jogo. Regar inicia o ciclo com 25% de bônus; Adubar pode adiantar mais 20% depois da rega. Ervas aparecem após 35% do tempo e pragas após 65%. Use Capinar e Dedetizar: fazer os dois dá um produto extra na colheita.</p></div></article><article>${icon('basket')}<div><h3>3. Colha e ganhe experiência</h3><p>O símbolo ✓ indica uma colheita pronta. Clique com Selecionar ou Colher para guardar a produção e ganhar XP. Novos níveis liberam cultivos.</p></div></article><article>${icon('crate')}<div><h3>4. Venda e expanda</h3><p>Venda sua produção no armazém. Use as moedas para comprar sementes, adubo e novos canteiros marcados com +.</p></div></article></div><div class="help-note">Clique no seu avatar no topo para escolher fazendeiro ou fazendeira. Use <b>WASD</b>, as setas ou clique no chão para andar em 3D; mover cancela tarefas pendentes. Segure o botão esquerdo e arraste para mover a câmera. Os terrenos dourados e o botão <b>Expandir</b> liberam novos canteiros.<br>Atalhos: <b>1</b> Selecionar · <b>2</b> Plantar · <b>3</b> Regar · <b>4</b> Colher · <b>5</b> Capinar · <b>6</b> Dedetizar · <b>7</b> Adubar · <b>Esc</b> Fechar<br>Seu progresso é local. Plantações regadas continuam crescendo enquanto você está fora.</div><button data-help-close class="primary-button full">Começar a plantar ${icon('sprout')}</button>`;
   }
 }
 $('#modal-body').addEventListener('click',e=>{
@@ -262,18 +293,21 @@ $('#open-storage').addEventListener('click',()=>openModal('storage'));
 $('#help').addEventListener('click',()=>openModal('help'));
 $('#open-goals').addEventListener('click',()=>openModal('goals'));
 $('#edit-farm').addEventListener('click',()=>openModal('rename'));
-$('#open-bag').addEventListener('click',()=>{const bag=$('#seed-section');bag.hidden=!bag.hidden;});
-$('#close-bag').addEventListener('click',()=>$('#seed-section').hidden=true);
+$('#open-bag').addEventListener('click',()=>openSeedBag());
+$('#close-bag').addEventListener('click',closeSeedBag);
+$('#seed-shop').addEventListener('click',()=>{closeSeedBag();shopTab='seeds';openModal('shop');});
+$('#seed-section').addEventListener('cancel',e=>{e.preventDefault();closeSeedBag();});
+$('#seed-section').addEventListener('click',e=>{if(e.target!==$('#seed-section'))return;const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeSeedBag();});
 $('#fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('.game-wrapper').requestFullscreen();}catch{toast('A tela cheia está indisponível nesta prévia. Abra o jogo em uma aba do navegador.',true);}});
 $('#close-modal').addEventListener('click',closeModal);
 $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal();});
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')) { const r=$('#modal').getBoundingClientRect(); if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom) closeModal();}});
 document.addEventListener('keydown',e=>{
-  if(modalType||e.ctrlKey||e.altKey||e.metaKey||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+  if(modalType||$('#seed-section').open||e.ctrlKey||e.altKey||e.metaKey||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
   const shortcuts={1:'smart',2:'plant',3:'water',4:'harvest',5:'weed',6:'spray',7:'fertilize'};
   if(shortcuts[e.key]) selectTool(shortcuts[e.key]);
 });
-function zoomMap(delta) { zoom=Math.max(1,Math.min(1.6,zoom+delta)); const w=1400/zoom,h=820/zoom; if(farm3d){farm3d.setZoom(zoom);farm.dataset.zoom=zoom;}else farm.setAttribute('viewBox',`${700-w/2} ${440-h/2} ${w} ${h}`); $('#zoom-out').disabled=zoom<=1; $('#zoom-in').disabled=zoom>=1.59; }
+function zoomMap(delta) { zoom=Math.max(1,Math.min(1.6,zoom+delta)); const w=1400/zoom,h=820/zoom; if(farm3d){farm3d.setZoom(zoom);farm.dataset.zoom=zoom;}else {const v=farm.viewBox.baseVal,cx=v.x+v.width/2,cy=v.y+v.height/2;farm.setAttribute('viewBox',`${cx-w/2} ${cy-h/2} ${w} ${h}`);} $('#zoom-out').disabled=zoom<=1; $('#zoom-in').disabled=zoom>=1.59; }
 $('#zoom-in').addEventListener('click',()=>zoomMap(.2)); $('#zoom-out').addEventListener('click',()=>zoomMap(-.2)); $('#zoom-out').disabled=true;
 farm.addEventListener('wheel',e=>{if(!farm3d)return;e.preventDefault();zoomMap(e.deltaY<0?.1:-.1);},{passive:false});
 window.addEventListener('storage',e=>{ if(e.key===SAVE_KEY&&e.newValue) { const incoming=decodeSave(e.newValue); if(incoming) { farm3d?.cancel();state=incoming; render(); toast('Seu sítio foi atualizado por outra aba.'); } } });

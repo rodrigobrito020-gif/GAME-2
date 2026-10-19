@@ -1,16 +1,18 @@
 import {test,expect} from '@playwright/test';
+import * as THREE from 'three';
 import {newGame,action,SAVE_KEY} from '../../public/game.js';
 test.setTimeout(60000);
 const saved=p=>p.evaluate(k=>JSON.parse(localStorage.getItem(k)),SAVE_KEY);
 const position=p=>p.locator('#farm-canvas').evaluate(c=>({x:Number(c.dataset.playerX),z:Number(c.dataset.playerZ)}));
 test('escolhe fazendeira, move por WASD e por clique no chão; aparência e itens persistem',async({page})=>{
+ test.setTimeout(90000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('/');const before=await saved(page);
  await page.locator('#edit-farm').click();await expect(page.locator('.farmer-choices label')).toHaveCount(2);const still=await position(page);await page.keyboard.press('w');expect(await position(page)).toEqual(still);
  await page.locator('input[name="farmer"][value="female"]').check();await page.locator('#rename-form button').click();await expect(page.locator('#farm-canvas')).toHaveAttribute('data-farmer-style','female');await expect(page.locator('#farmer-avatar')).toHaveText('👩🏻‍🌾');
  const after=await saved(page);expect(after.seeds).toEqual(before.seeds);expect(after.coins).toBe(before.coins);expect(after.water).toEqual(before.water);
  const initial=await position(page);await page.keyboard.down('a');await page.waitForTimeout(600);await page.keyboard.up('a');await expect(page.locator('#farm-canvas')).toHaveAttribute('data-action-phase','idle');const walked=await position(page);expect(Math.hypot(walked.x-initial.x,walked.z-initial.z)).toBeGreaterThan(.3);
- // Com o enquadramento maior, o ponto antigo passou a cair na cerca do galinheiro.
- const farm=page.locator('#farm'),rect=await farm.boundingBox();await farm.click({position:{x:rect.width*.60,y:rect.height*.65}});await expect.poll(async()=>{const p=await position(page);return Math.hypot(p.x-walked.x,p.z-walked.z);},{timeout:20000}).toBeGreaterThan(1);await expect(page.locator('#farm-canvas')).toHaveAttribute('data-action-phase','idle',{timeout:20000});
+ // Clique num trecho livre do caminho principal, usando a projeção atual.
+ const farm=page.locator('#farm'),rect=await farm.boundingBox(),d=await page.locator('#farm-canvas').evaluate(c=>({...c.dataset}));const camera=new THREE.OrthographicCamera(-Number(d.viewHalfWidth),Number(d.viewHalfWidth),Number(d.viewHalfHeight),-Number(d.viewHalfHeight),.1,140),focus=new THREE.Vector3(Number(d.cameraFocusX),0,Number(d.cameraFocusZ));camera.position.copy(focus).add(new THREE.Vector3(24,32,34));camera.lookAt(focus);camera.updateMatrixWorld();const point=new THREE.Vector3(2.4,0,11).project(camera);await page.mouse.click(rect.x+(point.x+1)*rect.width/2,rect.y+(1-point.y)*rect.height/2);await expect.poll(async()=>{const p=await position(page);return Math.hypot(p.x-walked.x,p.z-walked.z);},{timeout:20000}).toBeGreaterThan(1);await expect(page.locator('#farm-canvas')).toHaveAttribute('data-action-phase','idle',{timeout:20000});
  await page.reload();await expect(page.locator('#farm-canvas')).toHaveAttribute('data-farmer-style','female');expect((await saved(page)).seeds).toEqual(before.seeds);expect(errors).toEqual([]);
 });
 test('andar cancela uma rega pendente sem gastar água; personagem chega ao canteiro depois de ser movido',async({page})=>{

@@ -79,3 +79,14 @@ O usuário pediu lago maior, canteiros cobrindo a grama da área de plantio, ove
 A atualização usa atlas próprios gerados, incorporados ao HTML e apresentados com recortes por viewport SVG. Os textos e controles continuam dinâmicos. O cenário recebe materiais, iluminação, telhados e janelas mais detalhados; moinho com pás animadas; lago maior; 54 terrenos com os primeiros 16 preservados; ovelhas compráveis no aprisco com lã. O HUD sai da frente do lago. A geometria dos canteiros usa instâncias para reduzir chamadas de desenho.
 
 Rações são estoque persistente, não pagamentos diretos em moedas: trigo e soja para aves, alternativa com milho, alfafa e trigo para ruminantes, soja e trigo para peixes/camarões. O preparo reserva a colheita, tem prazo persistido e uma produção por vez; recolher credita o depósito uma única vez. Um saco repõe quatro ciclos. Sementes não contam como ingredientes e vender tudo não vende a ração pronta. As receitas são abstrações de jogo, com custos e tempos ajustáveis.
+
+
+## Atualização 0.8 — interface de jogo em toda a janela
+
+O usuário pediu a fazenda ocupando a página inteira, sem scroll da página; moedas e água no alto à direita; sementes abertas pelo clique num canteiro vazio; câmera movida segurando e arrastando o botão esquerdo do mouse.
+
+O cenário passa a ocupar o viewport, com HUD e ferramentas sobrepostos. A bolsa vira um diálogo contextual: o índice do terreno é mantido apenas enquanto aberta, e escolher uma semente agenda a ação naquele terreno com a validação existente. Cancelar não consome nada. Loja e bolsa compartilham o mesmo estoque e as janelas mantêm rolagem interna quando o conteúdo não cabe.
+
+Um gesto de ponteiro distingue clique e arraste com limiar de 6 pixels. O arraste captura o ponteiro e desloca o plano da câmera, atualizando os alvos SVG; suprime a ação do clique ao soltar. O enquadramento é limitado à região da fazenda e permanece após o arraste. Novo movimento ou tarefa do personagem permite retomar o acompanhamento. Não há alteração de economia, progressão, saves ou conteúdo do GAME-1.
+
+Em telas estreitas, o enquadramento inicial aproxima a fazenda para aumentar os alvos por toque; o arraste permite alcançar as laterais. O chão cobre também os limites do enquadramento para não exibir bordas vazias ao movimentar a câmera.

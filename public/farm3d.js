@@ -17,7 +17,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
   const sun=new THREE.DirectionalLight(0xffe8c3,2.7); sun.position.set(-18,32,20); sun.castShadow=true;
   Object.assign(sun.shadow.camera,{left:-36,right:36,top:36,bottom:-36,near:1,far:90});
   sun.shadow.mapSize.set(1024,1024); renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;sun.shadow.normalBias=.05; sun.shadow.bias=-.0002; scene.add(sun);
-  const camera=new THREE.OrthographicCamera(-18,18,11,-11,.1,140),cameraFocus=new THREE.Vector3(); camera.position.set(24,32,34); camera.lookAt(cameraFocus);
+  const camera=new THREE.OrthographicCamera(-18,18,11,-11,.1,140),cameraFocus=new THREE.Vector3();let cameraPinned=false; camera.position.set(24,32,34); camera.lookAt(cameraFocus);
   const materials=new Map(), geometries=new Set(), textures=[];let woodMap=null,roofMap=null;
   const woodColors=new Set(['#83532b','#a26931','#d49a49','#8f5c31','#895b30','#ba8045','#754f31','#b88445','#c48c4b','#98603a','#ad6739','#8a5a33']);
   const roofColors=new Set(['#b8572e','#b44c32','#b56837','#804a32']);
@@ -31,9 +31,9 @@ export function createFarm3D(svg, { onStatus, onError }) {
   let seed=721;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
   function texture(kind){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),colors={grass:['#6a9d47','#83ae58','#4e823a'],soil:['#956440','#ad7b50','#724a31'],wood:['#d7bd92','#bfa072','#ede0bc'],roof:['#d4a17b','#bd8862','#edd0a3'],path:['#c7aa7c','#d6be96','#b39a72']},pal=colors[kind];ctx.fillStyle=pal[0];ctx.fillRect(0,0,256,256);
     for(let i=0;i<4200;i++){const x=random()*256,y=random()*256;ctx.globalAlpha=.12+random()*.4;ctx.fillStyle=pal[1+i%2];if(kind==='wood')ctx.fillRect(x,y,1,10+random()*40);else if(kind==='roof')ctx.fillRect(x,y,7+random()*13,2);else{ctx.beginPath();ctx.ellipse(x,y,1+random()*3,kind==='grass'?1+random()*4:.8+random()*1.2,random()*3,0,Math.PI*2);ctx.fill();}}
-    ctx.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());t.repeat.setScalar(kind==='grass'?12:kind==='soil'?1:2);textures.push(t);return t;}
+    ctx.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());t.repeat.setScalar(kind==='grass'?24:kind==='soil'?1:2);textures.push(t);return t;}
   woodMap=texture('wood');roofMap=texture('roof');const pathMap=texture('path');
-  const ground=mesh(new THREE.PlaneGeometry(120,120),'#ffffff',scene,0,-.03,0,{map:texture('grass')});ground.rotation.x=-Math.PI/2;ground.castShadow=false;
+  const ground=mesh(new THREE.PlaneGeometry(240,240),'#ffffff',scene,0,-.03,0,{map:texture('grass')});ground.rotation.x=-Math.PI/2;ground.castShadow=false;
   // A small rural farm framed by trees rather than a city.
   function path(x,z,w,d){const shape=new THREE.Shape(),r=Math.min(.7,w/3,d/3);shape.moveTo(-w/2+r,-d/2);shape.lineTo(w/2-r,-d/2);shape.quadraticCurveTo(w/2,-d/2,w/2,-d/2+r);shape.lineTo(w/2,d/2-r);shape.quadraticCurveTo(w/2,d/2,w/2-r,d/2);shape.lineTo(-w/2+r,d/2);shape.quadraticCurveTo(-w/2,d/2,-w/2,d/2-r);shape.lineTo(-w/2,-d/2+r);shape.quadraticCurveTo(-w/2,-d/2,-w/2+r,-d/2);const p=mesh(new THREE.ShapeGeometry(shape,8),'#e3d3ad',scene,x,.018,z,{map:pathMap});p.rotation.x=-Math.PI/2;p.castShadow=false;}
   path(0,-2.7,44,2.3);path(2.4,2,2,28);path(-4.8,-5.3,1.6,5.5);path(12.7,4,1.8,23);path(17.8,8,10,1.6);
@@ -226,8 +226,8 @@ export function createFarm3D(svg, { onStatus, onError }) {
   function setPhase(next){phase=next;elapsed=0;canvas.dataset.actionPhase=next;canvas.setAttribute('aria-busy',String(next!=='idle'));canvas.dataset.pending=String(queue.length+(job?1:0));}
   function selectTool(id){selected=id;if(!job)equip(id);}
   function enqueue(type,index,apply){if(queue.length>=12){onError('Aguarde o fazendeiro terminar as tarefas.');return false;}if((job?.index===index&&job.type===type)||queue.some(j=>j.index===index&&j.type===type))return false;
-    heldKeys.clear();manualRoute=[];queue.push({type,index,apply});canvas.dataset.pending=String(queue.length+(job?1:0));return true;}
-  function nextJob(){job=queue.shift();if(!job){setPhase('idle');equip(selected);onStatus('Selecione uma ferramenta e clique em um canteiro.');return;}
+    cameraPinned=false;heldKeys.clear();manualRoute=[];queue.push({type,index,apply});canvas.dataset.pending=String(queue.length+(job?1:0));return true;}
+  function nextJob(){job=queue.shift();if(!job){setPhase('idle');equip(selected);onStatus('Arraste para mover a câmera · Clique num canteiro para cuidar');return;}
     const p=plotPosition(job.index),laneX=p.x+1.275,target=new THREE.Vector3(laneX,0,p.z);
     route=findRoute(farmer.position,target);
     if(!route){onError('Não foi possível chegar ao canteiro.');job=null;nextJob();return;}
@@ -270,9 +270,17 @@ export function createFarm3D(svg, { onStatus, onError }) {
   }
   function cancelTasks(){queue.length=0;job=null;impact=false;route=[];manualRoute=[];heldKeys.clear();setPhase('idle');selection.visible=false;body.rotation.x=0;body.position.y=0;arms.forEach(a=>a.rotation.x=0);legs.forEach(l=>l.rotation.x=0);held.rotation.x=0;particleBits.forEach(p=>p.visible=false);equip(selected);}
   function moveTo(clientX,clientY){const rect=canvas.getBoundingClientRect(),ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((clientX-rect.left)/rect.width*2-1,1-(clientY-rect.top)/rect.height*2),camera);const target=ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),new THREE.Vector3());if(!target)return;canvas.dataset.moveTargetX=target.x.toFixed(3);canvas.dataset.moveTargetZ=target.z.toFixed(3);
-    const planned=findRoute(farmer.position,target);if(!planned){onError('Escolha um trecho livre de chão para caminhar.');return;}cancelTasks();manualRoute=planned;setPhase('moving');onStatus('Caminhando · WASD ou setas também movem o personagem.');}
+    const planned=findRoute(farmer.position,target);if(!planned){onError('Escolha um trecho livre de chão para caminhar.');return;}cameraPinned=false;cancelTasks();manualRoute=planned;setPhase('moving');onStatus('Caminhando · WASD ou setas também movem o personagem.');}
+  function panBy(dx,dy){
+    const rect=canvas.getBoundingClientRect(),ray=new THREE.Raycaster(),plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+    ray.setFromCamera(new THREE.Vector2(0,0),camera);const from=ray.ray.intersectPlane(plane,new THREE.Vector3());
+    ray.setFromCamera(new THREE.Vector2(dx*2/rect.width,-dy*2/rect.height),camera);const to=ray.ray.intersectPlane(plane,new THREE.Vector3());if(!from||!to)return;
+    const next=cameraFocus.clone().add(from.sub(to));next.x=THREE.MathUtils.clamp(next.x,-18,18);next.z=THREE.MathUtils.clamp(next.z,-14,14);
+    camera.position.add(next.clone().sub(cameraFocus));cameraFocus.copy(next);cameraPinned=true;camera.updateMatrixWorld();hitMarkup();
+    canvas.dataset.cameraFocusX=cameraFocus.x.toFixed(3);canvas.dataset.cameraFocusZ=cameraFocus.z.toFixed(3);
+  }
   const moveCodes=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight']);
-  function keyDown(e){if(!moveCodes.has(e.code)||e.ctrlKey||e.metaKey||e.altKey||document.querySelector('dialog[open]')||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'))return;e.preventDefault();if(job||queue.length)cancelTasks();manualRoute=[];heldKeys.add(e.code);setPhase('moving');}
+  function keyDown(e){if(!moveCodes.has(e.code)||e.ctrlKey||e.metaKey||e.altKey||document.querySelector('dialog[open]')||document.activeElement?.matches('input,textarea,select,[contenteditable="true"]'))return;e.preventDefault();cameraPinned=false;if(job||queue.length)cancelTasks();manualRoute=[];heldKeys.add(e.code);setPhase('moving');}
   function keyUp(e){heldKeys.delete(e.code);}
   function clearKeys(){heldKeys.clear();}
   document.addEventListener('keydown',keyDown);document.addEventListener('keyup',keyUp);window.addEventListener('blur',clearKeys);document.addEventListener('visibilitychange',clearKeys);
@@ -282,7 +290,7 @@ export function createFarm3D(svg, { onStatus, onError }) {
       for(let i=0;i<pieces;i++){const x=farmer.position.x+direction.x*distance,z=farmer.position.z+direction.z*distance;if(!blocked(x,z))farmer.position.set(x,0,z);else if(!blocked(x,farmer.position.z))farmer.position.x=x;else if(!blocked(farmer.position.x,z))farmer.position.z=z;}
       walkTime+=dt*11;legs.forEach((l,i)=>l.rotation.x=Math.sin(walkTime+i*Math.PI)*.55);arms.forEach((a,i)=>a.rotation.x=Math.sin(walkTime+i*Math.PI)*.3);body.position.y=Math.abs(Math.sin(walkTime))*.025;
     }else{legs.forEach(l=>l.rotation.x=0);arms.forEach(a=>a.rotation.x=0);body.position.y=0;}
-    if(!heldKeys.size&&!manualRoute.length){setPhase('idle');onStatus('Selecione uma ferramenta e clique em um canteiro.');}
+    if(!heldKeys.size&&!manualRoute.length){setPhase('idle');onStatus('Arraste para mover a câmera · Clique num canteiro para cuidar');}
   }
   function turnToward(angle,dt){const delta=Math.atan2(Math.sin(angle-farmer.rotation.y),Math.cos(angle-farmer.rotation.y));farmer.rotation.y+=delta*(1-Math.exp(-dt*12));}
   function tick(now){if(disposed)return;raf=requestAnimationFrame(tick);const dt=Math.min(.25,Math.max(0,(now-last)/1000));last=now;
@@ -304,13 +312,13 @@ export function createFarm3D(svg, { onStatus, onError }) {
     }}else if(!reduced){body.position.y=Math.sin(t*2)*.008;}
     if(now-(tick.lastRender||0)>33){
       const projected=farmer.position.clone().project(camera);
-      if(Math.abs(projected.x)>.76||Math.abs(projected.y)>.68){const shift=farmer.position.clone().sub(cameraFocus).setY(0).multiplyScalar(Math.min(.15,dt*1.5));camera.position.add(shift);cameraFocus.add(shift);camera.updateMatrixWorld();hitMarkup();}
+      if(!cameraPinned&&(Math.abs(projected.x)>.76||Math.abs(projected.y)>.68)){const shift=farmer.position.clone().sub(cameraFocus).setY(0).multiplyScalar(Math.min(.15,dt*1.5));camera.position.add(shift);cameraFocus.add(shift);camera.updateMatrixWorld();hitMarkup();}
       if((job||phase==='moving')&&now-(tick.lastShadow||0)>100){renderer.shadowMap.needsUpdate=true;sun.shadow.needsUpdate=true;tick.lastShadow=now;}renderer.render(scene,camera);tick.lastRender=now;canvas.dataset.frames=String(Number(canvas.dataset.frames||0)+1);canvas.dataset.playerX=farmer.position.x.toFixed(3);canvas.dataset.playerZ=farmer.position.z.toFixed(3);canvas.dataset.cameraFocusX=cameraFocus.x.toFixed(3);canvas.dataset.cameraFocusZ=cameraFocus.z.toFixed(3);
     }
   }
-  function resize(){const {width,height}=host.getBoundingClientRect();if(!width||!height)return;renderer.setSize(width,height,false);const aspect=width/height,halfH=Math.max(26/aspect,13.5)/zoom,halfW=halfH*aspect;camera.left=-halfW;camera.right=halfW;camera.top=halfH;camera.bottom=-halfH;camera.updateProjectionMatrix();camera.updateMatrixWorld();canvas.dataset.viewHalfWidth=halfW.toFixed(5);canvas.dataset.viewHalfHeight=halfH.toFixed(5);hitMarkup();renderer.render(scene,camera);}
+  function resize(){const {width,height}=host.getBoundingClientRect();if(!width||!height)return;renderer.setSize(width,height,false);const aspect=width/height,halfH=Math.max((width<=650?16:26)/aspect,13.5)/zoom,halfW=halfH*aspect;camera.left=-halfW;camera.right=halfW;camera.top=halfH;camera.bottom=-halfH;camera.updateProjectionMatrix();camera.updateMatrixWorld();canvas.dataset.viewHalfWidth=halfW.toFixed(5);canvas.dataset.viewHalfHeight=halfH.toFixed(5);hitMarkup();renderer.render(scene,camera);}
   function setZoom(value){zoom=value;resize();}
   canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();queue.length=0;job=null;onError('O navegador perdeu a conexão 3D. Recarregue para continuar; seu progresso foi salvo.');});
-  const observer=new ResizeObserver(resize);observer.observe(host);resize();raf=requestAnimationFrame(tick);canvas.dataset.renderer='three';canvas.dataset.actionPhase='idle';canvas.dataset.completed='0';
-  return {update,selectTool,enqueue,setZoom,moveTo,cancel:cancelTasks,dispose(){disposed=true;cancelAnimationFrame(raf);document.removeEventListener('keydown',keyDown);document.removeEventListener('keyup',keyUp);window.removeEventListener('blur',clearKeys);document.removeEventListener('visibilitychange',clearKeys);observer.disconnect();renderer.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());expansionMaterials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());},get busy(){return !!job||queue.length>0;}};
+  const observer=new ResizeObserver(resize);observer.observe(host);resize();raf=requestAnimationFrame(tick);canvas.dataset.renderer='three';canvas.dataset.actionPhase='idle';canvas.dataset.pending='0';canvas.dataset.completed='0';canvas.setAttribute('aria-busy','false');
+  return {update,selectTool,enqueue,setZoom,panBy,moveTo,cancel:cancelTasks,dispose(){disposed=true;cancelAnimationFrame(raf);document.removeEventListener('keydown',keyDown);document.removeEventListener('keyup',keyUp);window.removeEventListener('blur',clearKeys);document.removeEventListener('visibilitychange',clearKeys);observer.disconnect();renderer.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());expansionMaterials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());},get busy(){return !!job||queue.length>0;}};
 }

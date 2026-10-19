@@ -5,7 +5,7 @@ const key='game2-sitio-aurora-v1';
 const saved=p=>p.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
 for(const width of[1440,390])test(`nome e personagem são aplicados juntos e persistem com ${width}px`,async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.setViewportSize({width,height:1000});await page.goto('/');const before=await saved(page);
- await page.getByText('Editar nome e personagem',{exact:false}).click();await page.locator('.farmer-choices label').filter({hasText:'Fazendeira'}).click();
+ await page.getByRole('button',{name:'Personalizar fazenda e personagem'}).click();await page.locator('.farmer-choices label').filter({hasText:'Fazendeira'}).click();
  await page.locator('#farm-name-input').fill('');await page.locator('#farm-name-input').pressSequentially('Fazenda da Ana',{delay:15});
  await page.getByRole('button',{name:'Aplicar nome e personagem'}).click();await expect(page.locator('#modal')).not.toBeVisible();await expect(page.locator('#farm-name')).toHaveText('Fazenda da Ana');await expect(page.locator('#farmer-title')).toHaveText('Fazendeira');await expect(page.locator('#farm-canvas')).toHaveAttribute('data-farmer-style','female');await expect(page.locator('#toast')).toContainText('Alterações salvas');
  const after=await saved(page);expect(after.seeds).toEqual(before.seeds);expect(after.water).toEqual(before.water);expect(after.coins).toBe(before.coins);expect(after.xp).toBe(before.xp);
